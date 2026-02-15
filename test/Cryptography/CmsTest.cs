@@ -39,7 +39,7 @@ cn4oisOvxCprs4aM9UVjtZTCjfyNpX8UWwT1W3rySV+KQNhxuMy3RzmL
             try
             {
 
-                Assert.AreEqual(aliceKid, key.Id);
+                Assert.AreEqual(aliceKid, (string)key.Id);
 
                 var cipher = Convert.FromBase64String(@"
 MIIBcwYJKoZIhvcNAQcDoIIBZDCCAWACAQAxgfowgfcCAQAwYDBbMQ0wCwYDVQQK

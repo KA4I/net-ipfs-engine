@@ -22,9 +22,9 @@ namespace Ipfs.Engine.Cryptography
             try
             {
                 var cert = await keychain.CreateBCCertificateAsync(key.Name);
-                Assert.AreEqual($"CN={key.Id},OU=keystore,O=ipfs", cert.SubjectDN.ToString());
+                Assert.AreEqual($"CN={key.Id.Hash.ToBase58()},OU=keystore,O=ipfs", cert.SubjectDN.ToString());
                 var ski = new SubjectKeyIdentifierStructure(cert.GetExtensionValue(X509Extensions.SubjectKeyIdentifier));
-                Assert.AreEqual(key.Id.ToBase58(), ski.GetKeyIdentifier().ToBase58());
+                Assert.AreEqual(key.Id.Hash.ToBase58(), ski.GetKeyIdentifier().ToBase58());
             }
             finally
             {
@@ -41,9 +41,9 @@ namespace Ipfs.Engine.Cryptography
             try
             {
                 var cert = await keychain.CreateBCCertificateAsync("alice");
-                Assert.AreEqual($"CN={key.Id},OU=keystore,O=ipfs", cert.SubjectDN.ToString());
+                Assert.AreEqual($"CN={key.Id.Hash.ToBase58()},OU=keystore,O=ipfs", cert.SubjectDN.ToString());
                 var ski = new SubjectKeyIdentifierStructure(cert.GetExtensionValue(X509Extensions.SubjectKeyIdentifier));
-                Assert.AreEqual(key.Id.ToBase58(), ski.GetKeyIdentifier().ToBase58());
+                Assert.AreEqual(key.Id.Hash.ToBase58(), ski.GetKeyIdentifier().ToBase58());
             }
             finally
             {
@@ -60,9 +60,9 @@ namespace Ipfs.Engine.Cryptography
             try
             {
                 var cert = await keychain.CreateBCCertificateAsync("alice");
-                Assert.AreEqual($"CN={key.Id},OU=keystore,O=ipfs", cert.SubjectDN.ToString());
+                Assert.AreEqual($"CN={key.Id.Hash.ToBase58()},OU=keystore,O=ipfs", cert.SubjectDN.ToString());
                 var ski = new SubjectKeyIdentifierStructure(cert.GetExtensionValue(X509Extensions.SubjectKeyIdentifier));
-                Assert.AreEqual(key.Id.ToBase58(), ski.GetKeyIdentifier().ToBase58());
+                Assert.AreEqual(key.Id.Hash.ToBase58(), ski.GetKeyIdentifier().ToBase58());
             }
             finally
             {

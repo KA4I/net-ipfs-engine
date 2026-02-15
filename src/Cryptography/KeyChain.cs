@@ -1,4 +1,5 @@
-﻿using Common.Logging;
+﻿#nullable disable
+using Common.Logging;
 using Org.BouncyCastle.Asn1.Sec;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
@@ -138,7 +139,7 @@ namespace Ipfs.Engine.Cryptography
             var key = await Store.TryGetAsync(name, cancel).ConfigureAwait(false);
             if (key == null)
                 return null;
-            return new KeyInfo { Id = key.Id, Name = key.Name };
+            return new KeyInfo { Id = new MultiHash(key.Id), Name = key.Name };
         }
 
         /// <summary>
@@ -169,13 +170,18 @@ namespace Ipfs.Engine.Cryptography
                 UseEncryptedKey(ekey, key =>
                 {
                     var kp = GetKeyPairFromPrivateKey(key);
-                    var spki = SubjectPublicKeyInfoFactory
-                        .CreateSubjectPublicKeyInfo(kp.Public)
-                        .GetDerEncoded();
+                    // Per libp2p spec, Ed25519 Data is raw 32-byte key (not DER SPKI).
+                    byte[] keyData;
+                    if (kp.Public is Ed25519PublicKeyParameters ed25519Pub)
+                        keyData = ed25519Pub.GetEncoded();
+                    else
+                        keyData = SubjectPublicKeyInfoFactory
+                            .CreateSubjectPublicKeyInfo(kp.Public)
+                            .GetDerEncoded();
                     // Add protobuf cruft.
                     var publicKey = new Proto.PublicKey
                     {
-                        Data = spki
+                        Data = keyData
                     };
                     if (kp.Public is RsaKeyParameters)
                         publicKey.Type = Proto.KeyType.RSA;
@@ -284,7 +290,7 @@ namespace Ipfs.Engine.Cryptography
         {
             var keys = Store
                 .Values
-                .Select(key => (IKey)new KeyInfo { Id = key.Id, Name = key.Name })
+                .Select(key => (IKey)new KeyInfo { Id = new MultiHash(key.Id), Name = key.Name })
                 ;
             return Task.FromResult(keys);
         }
@@ -297,7 +303,7 @@ namespace Ipfs.Engine.Cryptography
                 return null;
 
             await Store.RemoveAsync(name, cancel).ConfigureAwait(false);
-            return new KeyInfo { Id = key.Id, Name = key.Name };
+            return new KeyInfo { Id = new MultiHash(key.Id), Name = key.Name };
         }
 
         /// <inheritdoc />
@@ -310,7 +316,7 @@ namespace Ipfs.Engine.Cryptography
             await Store.PutAsync(newName, key, cancel).ConfigureAwait(false);
             await Store.RemoveAsync(oldName,  cancel).ConfigureAwait(false);
 
-            return new KeyInfo { Id = key.Id, Name = newName };
+            return new KeyInfo { Id = new MultiHash(key.Id), Name = newName };
         }
 
         /// <summary>
@@ -379,7 +385,7 @@ namespace Ipfs.Engine.Cryptography
             await Store.PutAsync(name, key).ConfigureAwait(false);
             log.DebugFormat("Added key '{0}' with ID {1}", name, keyId);
 
-            return new KeyInfo { Id = key.Id, Name = key.Name };
+            return new KeyInfo { Id = new MultiHash(key.Id), Name = key.Name };
         }
 
         /// <summary>
@@ -394,14 +400,19 @@ namespace Ipfs.Engine.Cryptography
         /// </remarks>
         MultiHash CreateKeyId (AsymmetricKeyParameter key)
         {
-            var spki = SubjectPublicKeyInfoFactory
-                .CreateSubjectPublicKeyInfo(key)
-                .GetDerEncoded();
+            // Per libp2p spec, Ed25519 Data is raw 32-byte key (not DER SPKI).
+            byte[] keyData;
+            if (key is Ed25519PublicKeyParameters ed25519Pub)
+                keyData = ed25519Pub.GetEncoded();
+            else
+                keyData = SubjectPublicKeyInfoFactory
+                    .CreateSubjectPublicKeyInfo(key)
+                    .GetDerEncoded();
 
             // Add protobuf cruft.
             var publicKey = new Proto.PublicKey
             {
-                Data = spki
+                Data = keyData
             };
             if (key is RsaKeyParameters)
                 publicKey.Type = Proto.KeyType.RSA;

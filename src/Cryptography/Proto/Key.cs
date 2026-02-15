@@ -1,4 +1,5 @@
-﻿using ProtoBuf;
+﻿#nullable disable
+using ProtoBuf;
 
 namespace Ipfs.Engine.Cryptography.Proto
 {

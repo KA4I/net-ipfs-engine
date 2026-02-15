@@ -1,4 +1,5 @@
-﻿using Org.BouncyCastle.Asn1.EdEC;
+﻿#nullable disable
+using Org.BouncyCastle.Asn1.EdEC;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Asn1.X9;

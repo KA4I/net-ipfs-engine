@@ -1,4 +1,5 @@
-﻿using Org.BouncyCastle.Asn1.Cms;
+﻿#nullable disable
+using Org.BouncyCastle.Asn1.Cms;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Cms;
 using Org.BouncyCastle.Crypto;
@@ -60,7 +61,8 @@ namespace Ipfs.Engine.Cryptography
             var edGen = new CmsEnvelopedDataGenerator();
             if (kp.Private is RsaPrivateCrtKeyParameters)
             {
-                edGen.AddKeyTransRecipient(kp.Public, Base58.Decode(ekey.Id));
+                var cert = await CreateBCCertificateAsync(keyName, cancel).ConfigureAwait(false);
+                edGen.AddKeyTransRecipient(cert);
             }
             else if (kp.Private is ECPrivateKeyParameters)
             {

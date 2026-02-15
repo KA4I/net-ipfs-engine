@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable disable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,6 +10,6 @@ namespace Ipfs.Engine.Cryptography
     class KeyInfo : IKey
     {
         public string Name { get; set; }
-        public MultiHash Id { get; set; }
+        public Cid Id { get; set; }
     }
 }
