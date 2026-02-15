@@ -201,3 +201,10 @@ FakesAssemblies/
 # VS 2017 creates this
 src/Ipfs.Engine.xml
 
+
+# Test output files
+interop-*.txt
+pt_*.txt
+test_*.txt
+test_multibase.csx
+spike/CborTest.csx
