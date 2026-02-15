@@ -1,21 +1,18 @@
-﻿using Common.Logging;
+﻿#nullable disable
+using Microsoft.Extensions.Logging;
 using Ipfs.CoreApi;
 using PeerTalk;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Ipfs.Engine.BlockExchange
+namespace Ipfs.Engine.BlockExchange;
+
+/// <summary>
+/// Exchange blocks with other peers.
+/// </summary>
+public class Bitswap : IService
 {
-    /// <summary>
-    /// Exchange blocks with other peers.
-    /// </summary>
-    public class Bitswap : IService
-    {
-        private static readonly ILog log = LogManager.GetLogger<Bitswap>();
+    private readonly ILogger<Bitswap> _logger = IpfsEngine.LoggerFactory.CreateLogger<Bitswap>();
 
         private readonly ConcurrentDictionary<Cid, WantedBlock> wants = new();
         private readonly ConcurrentDictionary<Peer, BitswapLedger> peerLedgers = new();
@@ -65,6 +62,7 @@ namespace Ipfs.Engine.BlockExchange
         {
             Protocols =
                 [
+                    new Bitswap12 { Bitswap = this },
                     new Bitswap11 { Bitswap = this },
                     new Bitswap1 { Bitswap = this }
                 ];
@@ -119,7 +117,7 @@ namespace Ipfs.Engine.BlockExchange
         /// <inheritdoc/>
         public Task StartAsync()
         {
-            log.Debug("Starting");
+            _logger.LogDebug("Starting");
 
             foreach (IBitswapProtocol protocol in Protocols)
             {
@@ -154,14 +152,14 @@ namespace Ipfs.Engine.BlockExchange
             }
             catch (Exception e)
             {
-                log.Warn("Sending want list", e);
+                _logger.LogWarning(e, "Sending want list");
             }
         }
 
         /// <inheritdoc/>
         public Task StopAsync()
         {
-            log.Debug("Stopping");
+            _logger.LogDebug("Stopping");
 
             Swarm.ConnectionEstablished -= Swarm_ConnectionEstablished;
             foreach (IBitswapProtocol protocol in Protocols)
@@ -212,10 +210,7 @@ namespace Ipfs.Engine.BlockExchange
         /// </remarks>
         public Task<IDataBlock> WantAsync(Cid id, MultiHash peer, CancellationToken cancel)
         {
-            if (log.IsDebugEnabled)
-            {
-                log.Debug($"{peer} wants {id}");
-            }
+            _logger.LogDebug("{Peer} wants {Cid}", peer, id);
 
             TaskCompletionSource<IDataBlock> tsc = new();
             WantedBlock want = wants.AddOrUpdate(
@@ -257,10 +252,7 @@ namespace Ipfs.Engine.BlockExchange
         /// </remarks>
         public void Unwant(Cid id)
         {
-            if (log.IsDebugEnabled)
-            {
-                log.Debug($"Unwant {id}");
-            }
+            _logger.LogDebug("Unwant {Cid}", id);
 
             if (wants.TryRemove(id, out WantedBlock block))
             {
@@ -288,6 +280,13 @@ namespace Ipfs.Engine.BlockExchange
         /// </remarks>
         public Task OnBlockReceivedAsync(Peer remote, byte[] block)
         {
+            // Try to determine the content type from the want list by matching the block's hash.
+            var hash = MultiHash.ComputeHash(block);
+            var wantedEntry = wants.Values.FirstOrDefault(w => w.Id.Hash == hash);
+            if (wantedEntry is not null)
+            {
+                return OnBlockReceivedAsync(remote, block, wantedEntry.Id.ContentType, wantedEntry.Id.Hash.Algorithm.Name);
+            }
             return OnBlockReceivedAsync(remote, block, Cid.DefaultContentType, MultiHash.DefaultAlgorithmName);
         }
 
@@ -340,8 +339,8 @@ namespace Ipfs.Engine.BlockExchange
                 _ = await BlockService
                     .PutAsync(
                         data: block,
-                        contentType: contentType,
-                        multiHash: multiHash,
+                        cidCodec: contentType,
+                        hash: MultiHash.ComputeHash(block, multiHash),
                         pin: false)
                     .ConfigureAwait(false);
             }
@@ -355,19 +354,20 @@ namespace Ipfs.Engine.BlockExchange
         /// <returns>A task that represents the asynchronous operation.</returns>
         public Task OnBlockSentAsync(Peer remote, IDataBlock block)
         {
+            long size = block is IBlockStat stat ? stat.Size : 0;
             ++BlocksSent;
-            DataSent += (ulong)block.Size;
+            DataSent += (ulong)size;
             _ = peerLedgers.AddOrUpdate(remote,
                 (peer) => new BitswapLedger
                 {
                     Peer = peer,
                     BlocksExchanged = 1,
-                    DataSent = (ulong)block.Size
+                    DataSent = (ulong)size
                 },
                 (peer, ledger) =>
                 {
                     ++ledger.BlocksExchanged;
-                    DataSent += (ulong)block.Size;
+                    DataSent += (ulong)size;
                     return ledger;
                 });
 
@@ -412,28 +412,20 @@ namespace Ipfs.Engine.BlockExchange
                 Task[] tasks = [.. Swarm.KnownPeers
                     .Where(p => p.ConnectedAddress is not null)
                     .Select(p => SendWantListAsync(p, wants, full))];
-                if (log.IsDebugEnabled)
-                {
-                    log.Debug($"Spamming {tasks.Length} connected peers");
-                }
+                _logger.LogDebug("Spamming {Count} connected peers", tasks.Length);
 
                 await Task.WhenAll(tasks).ConfigureAwait(false);
 
-                if (log.IsDebugEnabled)
-                {
-                    log.Debug($"Spam {tasks.Length} connected peers done");
-                }
+                _logger.LogDebug("Spam {Count} connected peers done", tasks.Length);
             }
             catch (Exception e)
             {
-                log.Debug("sending to all failed", e);
+                _logger.LogDebug(e, "Sending to all failed");
             }
         }
 
         private async Task SendWantListAsync(Peer peer, IEnumerable<WantedBlock> wants, bool full)
         {
-            log.Debug($"sending want list to {peer}");
-
             // Send the want list to the peer on any bitswap protocol that it supports.
             foreach (IBitswapProtocol protocol in Protocols)
             {
@@ -445,11 +437,10 @@ namespace Ipfs.Engine.BlockExchange
                 }
                 catch (Exception)
                 {
-                    log.Debug($"{peer} refused {protocol}");
+                    _logger.LogDebug("{Peer} refused {Protocol}", peer, protocol);
                 }
             }
 
-            log.Warn($"{peer} does not support any bitswap protocol");
+            _logger.LogWarning("{Peer} does not support any bitswap protocol", peer);
         }
     }
-}

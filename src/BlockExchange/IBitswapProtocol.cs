@@ -1,4 +1,5 @@
-﻿using PeerTalk.Protocols;
+﻿#nullable disable
+using PeerTalk.Protocols;
 using System;
 using System.Collections.Generic;
 using System.IO;

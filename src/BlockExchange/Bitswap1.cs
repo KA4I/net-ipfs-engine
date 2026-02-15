@@ -1,4 +1,5 @@
-﻿using Common.Logging;
+﻿#nullable disable
+using Common.Logging;
 using PeerTalk;
 using ProtoBuf;
 using Semver;
@@ -56,8 +57,7 @@ namespace Ipfs.Engine.BlockExchange
                 log.Debug("got want list");
                 foreach (Entry entry in request.wantlist.entries)
                 {
-                    string s = Base58.ToBase58(entry.block);
-                    Cid cid = s;
+                    Cid cid = Cid.Read(entry.block);
                     if (entry.cancel)
                     {
                         // TODO: Unwant specific to remote peer
@@ -88,9 +88,16 @@ namespace Ipfs.Engine.BlockExchange
             // TODO: Determine if we will fetch the block for the remote
             try
             {
-                IDataBlock block = null != await Bitswap.BlockService.StatAsync(cid, cancel).ConfigureAwait(false)
-                    ? await Bitswap.BlockService.GetAsync(cid, cancel).ConfigureAwait(false)
-                    : await Bitswap.WantAsync(cid, remotePeer.Id, cancel).ConfigureAwait(false);
+                IDataBlock block;
+                if (null != await Bitswap.BlockService.StatAsync(cid, cancel).ConfigureAwait(false))
+                {
+                    byte[] data = await Bitswap.BlockService.GetAsync(cid, cancel).ConfigureAwait(false);
+                    block = new CoreApi.DataBlock { Id = cid, DataBytes = data, Size = data.Length };
+                }
+                else
+                {
+                    block = await Bitswap.WantAsync(cid, remotePeer.Id, cancel).ConfigureAwait(false);
+                }
 
                 // Send block to remote.
                 using (Stream stream = await Bitswap.Swarm.DialAsync(remotePeer, ToString()).ConfigureAwait(false))
@@ -124,7 +131,7 @@ namespace Ipfs.Engine.BlockExchange
                     entries = [.. wants
                         .Select(w => new Entry
                         {
-                            block = w.Id.Hash.ToArray()
+                            block = w.Id.ToArray()
                         })]
                 }
             };
@@ -140,12 +147,13 @@ namespace Ipfs.Engine.BlockExchange
             )
         {
             log.Debug($"Sending block {block.Id}");
+            byte[] dataBytes = block is CoreApi.DataBlock db ? db.DataBytes : throw new InvalidOperationException("Block must be a DataBlock to send.");
 
             Message message = new()
             {
                 blocks =
                 [
-                    block.DataBytes
+                    dataBytes
                 ]
             };
 

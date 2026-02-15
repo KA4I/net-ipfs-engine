@@ -1,4 +1,5 @@
-﻿using Common.Logging;
+﻿#nullable disable
+using Common.Logging;
 using PeerTalk;
 using ProtoBuf;
 using Semver;
@@ -91,9 +92,16 @@ namespace Ipfs.Engine.BlockExchange
             // TODO: Determine if we will fetch the block for the remote
             try
             {
-                IDataBlock block = (await Bitswap.BlockService.StatAsync(cid, cancel).ConfigureAwait(false)) is not null
-                    ? await Bitswap.BlockService.GetAsync(cid, cancel).ConfigureAwait(false)
-                    : await Bitswap.WantAsync(cid, remotePeer.Id, cancel).ConfigureAwait(false);
+                IDataBlock block;
+                if ((await Bitswap.BlockService.StatAsync(cid, cancel).ConfigureAwait(false)) is not null)
+                {
+                    byte[] data = await Bitswap.BlockService.GetAsync(cid, cancel).ConfigureAwait(false);
+                    block = new CoreApi.DataBlock { Id = cid, DataBytes = data, Size = data.Length };
+                }
+                else
+                {
+                    block = await Bitswap.WantAsync(cid, remotePeer.Id, cancel).ConfigureAwait(false);
+                }
 
                 // Send block to remote.
                 using Stream stream = await Bitswap.Swarm.DialAsync(remotePeer, ToString(), cancel).ConfigureAwait(false);
@@ -147,6 +155,7 @@ namespace Ipfs.Engine.BlockExchange
             )
         {
             log.Debug($"Sending block {block.Id}");
+            byte[] dataBytes = block is CoreApi.DataBlock db ? db.DataBytes : throw new InvalidOperationException("Block must be a DataBlock to send.");
             Message message = new()
             {
                 payload =
@@ -154,7 +163,7 @@ namespace Ipfs.Engine.BlockExchange
                     new Block
                     {
                         prefix =  GetCidPrefix(block.Id),
-                        data = block.DataBytes
+                        data = dataBytes
                     }
                 ]
             };

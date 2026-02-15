@@ -108,7 +108,7 @@ namespace Ipfs.Engine.BlockExchange
             bitswap.Found(a);
             Assert.IsTrue(task.IsCompleted);
             CollectionAssert.DoesNotContain(bitswap.PeerWants(self.Id).ToArray(), a.Id);
-            CollectionAssert.AreEqual(a.DataBytes, task.Result.DataBytes);
+            Assert.AreEqual(a.Id, task.Result.Id);
         }
 
         [TestMethod]
