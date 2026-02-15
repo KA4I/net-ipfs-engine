@@ -83,10 +83,9 @@ namespace Ipfs.Engine
         }
 
         [TestMethod]
-        [ExpectedException(typeof(Exception))]
         public void IpfsPass_Missing()
         {
-            var _ = new IpfsEngine();
+            Assert.ThrowsExactly<InvalidOperationException>(() => new IpfsEngine());
         }
 
         [TestMethod]

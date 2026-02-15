@@ -1,6 +1,7 @@
 ﻿using Ipfs.CoreApi;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -18,15 +19,17 @@ namespace Ipfs.Engine
             var result = await ipfs.FileSystem.AddTextAsync("I am pinned");
             var id = result.Id;
 
-            var pins = await ipfs.Pin.AddAsync(id);
+            var pins = await ipfs.Pin.AddAsync(id.ToString(), new PinAddOptions());
             Assert.IsTrue(pins.Any(pin => pin == id));
-            var all = await ipfs.Pin.ListAsync();
-            Assert.IsTrue(all.Any(pin => pin == id));
+            var all = new List<PinListItem>();
+            await foreach (var pin in ipfs.Pin.ListAsync()) all.Add(pin);
+            Assert.IsTrue(all.Any(p => p.Cid == id));
 
             pins = await ipfs.Pin.RemoveAsync(id);
             Assert.IsTrue(pins.Any(pin => pin == id));
-            all = await ipfs.Pin.ListAsync();
-            Assert.IsFalse(all.Any(pin => pin == id));
+            all = new List<PinListItem>();
+            await foreach (var pin in ipfs.Pin.ListAsync()) all.Add(pin);
+            Assert.IsFalse(all.Any(p => p.Cid == id));
         }
 
         [TestMethod]
@@ -46,15 +49,17 @@ namespace Ipfs.Engine
                 ContentType = "raw",
                 Hash = MultiHash.ComputeHash(new byte[] { 1, 2, 3 }, "identity")
             };
-            var pins = await ipfs.Pin.AddAsync(cid, recursive: false);
-            CollectionAssert.Contains(pins.ToArray(), cid);
-            var all = await ipfs.Pin.ListAsync();
-            CollectionAssert.Contains(all.ToArray(), cid);
+            var pins = await ipfs.Pin.AddAsync(cid.ToString(), new PinAddOptions { Recursive = false });
+            Assert.IsTrue(pins.Any(p => p == cid));
+            var all = new List<PinListItem>();
+            await foreach (var pin in ipfs.Pin.ListAsync()) all.Add(pin);
+            Assert.IsTrue(all.Any(p => p.Cid == cid));
 
-            var removals = await ipfs.Pin.RemoveAsync(cid, recursive: false);
-            CollectionAssert.Contains(removals.ToArray(), cid);
-            all = await ipfs.Pin.ListAsync();
-            CollectionAssert.DoesNotContain(all.ToArray(), cid);
+            var removals = await ipfs.Pin.RemoveAsync(cid, false);
+            Assert.IsTrue(removals.Any(p => p == cid));
+            all = new List<PinListItem>();
+            await foreach (var pin in ipfs.Pin.ListAsync()) all.Add(pin);
+            Assert.IsFalse(all.Any(p => p.Cid == cid));
         }
 
         [TestMethod]
@@ -65,7 +70,7 @@ namespace Ipfs.Engine
             ExceptionAssert.Throws<Exception>(() =>
             {
                 var cts = new CancellationTokenSource(250);
-                var _ = ipfs.Pin.AddAsync(dag.Id, true, cts.Token).Result;
+                var _ = ipfs.Pin.AddAsync(dag.Id.ToString(), new PinAddOptions { Recursive = true }, cts.Token).Result;
             });
         }
 
@@ -75,13 +80,13 @@ namespace Ipfs.Engine
             var ipfs = TestFixture.Ipfs;
             var options = new AddFileOptions
             {
-                ChunkSize = 3,
+                Chunker = "size-3",
                 Pin = false,
                 RawLeaves = true,
                 Wrap = true,
             };
             var node = await ipfs.FileSystem.AddTextAsync("hello world", options);
-            var cids = await ipfs.Pin.AddAsync(node.Id, true);
+            var cids = await ipfs.Pin.AddAsync(node.Id.ToString(), new PinAddOptions { Recursive = true });
             Assert.AreEqual(6, cids.Count());
         }
 
@@ -91,13 +96,13 @@ namespace Ipfs.Engine
             var ipfs = TestFixture.Ipfs;
             var options = new AddFileOptions
             {
-                ChunkSize = 3,
+                Chunker = "size-3",
                 Pin = false,
                 RawLeaves = true,
                 Wrap = true,
             };
             var node = await ipfs.FileSystem.AddTextAsync("hello world", options);
-            var cids = await ipfs.Pin.AddAsync(node.Id, true);
+            var cids = await ipfs.Pin.AddAsync(node.Id.ToString(), new PinAddOptions { Recursive = true });
             Assert.AreEqual(6, cids.Count());
 
             var removedCids = await ipfs.Pin.RemoveAsync(node.Id, true);

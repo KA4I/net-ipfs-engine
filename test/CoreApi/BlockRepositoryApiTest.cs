@@ -33,13 +33,13 @@ namespace Ipfs.Engine
         {
             var pinned = await ipfs.Block.PutAsync(new byte[256], pin: true);
             var unpinned = await ipfs.Block.PutAsync(new byte[512], pin: false);
-            Assert.AreNotEqual(pinned, unpinned);
-            Assert.IsNotNull(await ipfs.Block.StatAsync(pinned));
-            Assert.IsNotNull(await ipfs.Block.StatAsync(unpinned));
+            Assert.AreNotEqual(pinned.Id, unpinned.Id);
+            Assert.IsNotNull(await ipfs.Block.StatAsync(pinned.Id));
+            Assert.IsNotNull(await ipfs.Block.StatAsync(unpinned.Id));
 
             await ipfs.BlockRepository.RemoveGarbageAsync();
-            Assert.IsNotNull(await ipfs.Block.StatAsync(pinned));
-            Assert.IsNull(await ipfs.Block.StatAsync(unpinned));
+            Assert.IsNotNull(await ipfs.Block.StatAsync(pinned.Id));
+            Assert.IsNull(await ipfs.Block.StatAsync(unpinned.Id));
         }
 
         [TestMethod]

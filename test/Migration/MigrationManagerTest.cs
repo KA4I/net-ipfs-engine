@@ -21,7 +21,7 @@ namespace Ipfs.Engine.Migration
             var migrator = new MigrationManager(TestFixture.Ipfs);
             ExceptionAssert.Throws<ArgumentOutOfRangeException>(() =>
             {
-                migrator.MirgrateToVersionAsync(int.MaxValue).Wait();
+                migrator.MigrateToVersionAsync(int.MaxValue).Wait();
             });
         }
 
@@ -31,10 +31,10 @@ namespace Ipfs.Engine.Migration
             using (var ipfs = new TempNode())
             {
                 var migrator = new MigrationManager(ipfs);
-                await migrator.MirgrateToVersionAsync(0);
+                await migrator.MigrateToVersionAsync(0);
                 Assert.AreEqual(0, migrator.CurrentVersion);
 
-                await migrator.MirgrateToVersionAsync(migrator.LatestVersion);
+                await migrator.MigrateToVersionAsync(migrator.LatestVersion);
                 Assert.AreEqual(migrator.LatestVersion, migrator.CurrentVersion);
             }
         }

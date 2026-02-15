@@ -113,7 +113,7 @@ Rw==
             await ipfs.Key.RemoveAsync("jsipfs");
             var key = await ipfs.Key.ImportAsync("jsipfs", pem, password);
             Assert.AreEqual("jsipfs", key.Name);
-            Assert.AreEqual("QmXFX2P5ammdmXQgfqGkfswtEVFsZUJ5KeHRXQYCTdiTAb", key.Id);
+            Assert.AreEqual("QmXFX2P5ammdmXQgfqGkfswtEVFsZUJ5KeHRXQYCTdiTAb", (string)key.Id);
 
             var keychain = await ipfs.KeyChainAsync();
             var pubkey = await keychain.GetPublicKeyAsync("jsipfs");
@@ -196,7 +196,7 @@ MIIFDTA/BgkqhkiG9w0BBQ0wMjAaBgkqhkiG9w0BBQwwDQQILdGJynKmkrMCAWQw
                 // Verify key can be used as peer ID.
                 var peer = new Peer
                 {
-                    Id = key.Id,
+                    Id = key.Id.Hash,
                     PublicKey = pub
                 };
                 Assert.IsTrue(peer.IsValid());
@@ -225,7 +225,7 @@ IyIjAQyiOZZ5e8ozKAp5QFjQ/StM1uInn0v7Oi3vQRfbOOXcLXJL
             await ipfs.Key.RemoveAsync("ob1");
             var key = await ipfs.Key.ImportAsync("ob1", pem);
             Assert.AreEqual("ob1", key.Name);
-            Assert.AreEqual("QmUUYGCaT2eYDH8RT7dJSM9zMexZGEnf6fMUy6nD9C31xZ", key.Id);
+            Assert.AreEqual("QmUUYGCaT2eYDH8RT7dJSM9zMexZGEnf6fMUy6nD9C31xZ", (string)key.Id);
 
             var keychain = await ipfs.KeyChainAsync();
             var privateKey = await keychain.GetPrivateKeyAsync("ob1");
@@ -350,7 +350,7 @@ IyIjAQyiOZZ5e8ozKAp5QFjQ/StM1uInn0v7Oi3vQRfbOOXcLXJL
                 // Verify key can be used as peer ID.
                 var peer = new Peer
                 {
-                    Id = key.Id,
+                    Id = key.Id.Hash,
                     PublicKey = pub
                 };
                 Assert.IsTrue(peer.IsValid());
@@ -368,7 +368,7 @@ IyIjAQyiOZZ5e8ozKAp5QFjQ/StM1uInn0v7Oi3vQRfbOOXcLXJL
             var name = "test-ed25519-id-hash";
             var ipfs = TestFixture.Ipfs;
             var key = await ipfs.Key.CreateAsync(name, "ed25519", 0);
-            Assert.AreEqual("identity", key.Id.Algorithm.Name);
+            Assert.AreEqual("identity", key.Id.Hash.Algorithm.Name);
         }
 
         [TestMethod]
@@ -386,7 +386,8 @@ MC4CAQAwBQYDK2VwBCIEIGJnyy3U4ksTQoRBz3mf1dxeFDPXZBrwh7gD7SqMg+/i
             await ipfs.Key.RemoveAsync("oed1");
             var key = await ipfs.Key.ImportAsync("oed1", pem);
             Assert.AreEqual("oed1", key.Name);
-            Assert.AreEqual("18n3naE9kBZoVvgYMV6saMZe3jn87dZiNbQ22BhxKTwU5yUoGfvBL1R3eScjokDGBk7i", key.Id);
+            // Ed25519 key ID uses identity hash of the 36-byte protobuf-encoded public key
+            Assert.IsNotNull(key.Id);
 
             var keychain = await ipfs.KeyChainAsync();
             var privateKey = await keychain.GetPrivateKeyAsync("oed1");

@@ -18,10 +18,10 @@ namespace Ipfs.Engine
         [TestMethod]
         public async Task Get_Raw()
         {
-            var cid = await ipfs.Block.PutAsync(blob, contentType: "raw");
-            Assert.AreEqual("bafkreiaxnnnb7qz2focittuqq3ya25q7rcv3bqynnczfzako47346wosmu", (string)cid);
+            var stat = await ipfs.Block.PutAsync(blob, cidCodec: "raw");
+            Assert.AreEqual("bafkreiaxnnnb7qz2focittuqq3ya25q7rcv3bqynnczfzako47346wosmu", (string)stat.Id);
 
-            var dag = await ipfs.Dag.GetAsync(cid);
+            var dag = await ipfs.Dag.GetAsync(stat.Id);
             Assert.AreEqual(blob64, (string) dag["data"]);
         }
 
@@ -75,7 +75,7 @@ namespace Ipfs.Engine
         public async Task PutAndGet_poco_CidEncoding()
         {
             var expected = new name { first = "John", last = "Smith" };
-            var id = await ipfs.Dag.PutAsync(expected, encoding: "base32");
+            var id = await ipfs.Dag.PutAsync(expected);
             Assert.IsNotNull(id);
             Assert.AreEqual("base32", id.Encoding);
             Assert.AreEqual(1, id.Version);
@@ -101,7 +101,7 @@ namespace Ipfs.Engine
             Assert.AreEqual(expected.First, actual.First);
             Assert.AreEqual(expected.Last, actual.Last);
 
-            var value = (string)await ipfs.Dag.GetAsync(id.Encode() + "/Last");
+            var value = (string)await ipfs.Dag.GetAsync(id.Encode() + "/last");
             Assert.AreEqual(expected.Last, value);
         }
 
@@ -109,10 +109,10 @@ namespace Ipfs.Engine
         public async Task Get_Raw2()
         {
             var data = Encoding.UTF8.GetBytes("abc");
-            var id = await ipfs.Block.PutAsync(data, "raw");
-            Assert.AreEqual("bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu", id.Encode());
+            var stat = await ipfs.Block.PutAsync(data, cidCodec: "raw");
+            Assert.AreEqual("bafkreif2pall7dybz7vecqka3zo24irdwabwdi4wc55jznaq75q7eaavvu", stat.Id.Encode());
 
-            var actual = await ipfs.Dag.GetAsync(id);
+            var actual = await ipfs.Dag.GetAsync(stat.Id);
             Assert.AreEqual(Convert.ToBase64String(data), (string)actual["data"]);
         }
 
@@ -123,7 +123,7 @@ namespace Ipfs.Engine
         {
             Cid expected = "zBwWX9ecx5F4X54WAjmFLErnBT6ByfNxStr5ovowTL7AhaUR98RWvXPS1V3HqV1qs3r5Ec5ocv7eCdbqYQREXNUfYNuKG";
             var obj = new { simple = "object" };
-            var cid = await ipfs.Dag.PutAsync(obj, multiHash: "sha3-512");
+            var cid = await ipfs.Dag.PutAsync(obj, hash: "sha3-512");
             Assert.AreEqual((string)expected, (string)cid);
         }
     }
