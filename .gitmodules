@@ -1,24 +1,32 @@
 [submodule "ext/ipfs-k-bucket"]
 	path = ext/ipfs-k-bucket
 	url = https://github.com/KA4I/ipfs-k-bucket.git
+	branch = master
 [submodule "ext/ipfs-net-udns"]
 	path = ext/ipfs-net-udns
 	url = https://github.com/KA4I/ipfs-net-udns.git
+	branch = master
 [submodule "ext/net-dns"]
 	path = ext/net-dns
 	url = https://github.com/KA4I/net-dns.git
+	branch = master
 [submodule "ext/net-ipfs-http-client"]
 	path = ext/net-ipfs-http-client
 	url = https://github.com/KA4I/net-ipfs-http-client.git
+	branch = master
 [submodule "ext/net-mdns"]
 	path = ext/net-mdns
 	url = https://github.com/KA4I/net-mdns.git
+	branch = master
 [submodule "ext/peer-talk"]
 	path = ext/peer-talk
 	url = https://github.com/KA4I/peer-talk.git
+	branch = master
 [submodule "ext/kubo"]
 	path = ext/kubo
 	url = https://github.com/ipfs/kubo.git
+	branch = master
 [submodule "ext/net-ipfs-core"]
 	path = ext/net-ipfs-core
 	url = https://github.com/KA4I/net-ipfs-core.git
+	branch = main
