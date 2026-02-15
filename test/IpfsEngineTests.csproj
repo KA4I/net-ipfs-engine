@@ -1,26 +1,25 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- https://github.com/tonerdo/coverlet -->
     <!-- Do not collect by default -->
     <CollectCoverage>false</CollectCoverage>
     <CoverletOutputFormat>opencover</CoverletOutputFormat>
-    <DebugType>portable</DebugType>
-    <!--<Exclude>[xunit.*]*</Exclude>-->
     <IsPackable>false</IsPackable>
     <RootNamespace>Ipfs.Engine</RootNamespace>
-    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);VSTHRD002;VSTHRD103;VSTHRD110;VSTHRD200;CA2022</NoWarn>
+    <RunSettingsFilePath>$(MSBuildProjectDirectory)\test.runsettings</RunSettingsFilePath>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.msbuild" Version="6.0.4" PrivateAssets="all" />
-    <PackageReference Include="Google.Protobuf" Version="3.31.1" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" PrivateAssets="all" />
-    <PackageReference Include="MSTest.TestAdapter" Version="3.9.3" PrivateAssets="all" />
-    <PackageReference Include="MSTest.TestFramework" Version="3.9.3" PrivateAssets="all" />
+    <PackageReference Include="Google.Protobuf" Version="3.33.5" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" PrivateAssets="all" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.1.0" PrivateAssets="all" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.1.0" PrivateAssets="all" />
     <PackageReference Include="SharpZipLib" Version="1.4.2" />
-    <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
   </ItemGroup>
 
   <ItemGroup>
