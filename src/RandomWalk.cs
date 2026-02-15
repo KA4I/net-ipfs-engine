@@ -1,9 +1,6 @@
-﻿using Common.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Ipfs.CoreApi;
 using PeerTalk;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Ipfs.Engine;
 
@@ -11,33 +8,33 @@ namespace Ipfs.Engine;
 /// Periodically queries the DHT to discover new peers.
 /// </summary>
 /// <remarks>
-/// A backgroud task is created to query the DHT. It is designed to run often at startup and
-/// then less often at time increases.
+/// A background task is created to query the DHT. It is designed to run often at startup and
+/// then less often as time increases.
 /// </remarks>
 public class RandomWalk : IService
 {
     /// <summary>
     /// The time to wait until running the query.
     /// </summary>
-    public TimeSpan Delay = TimeSpan.FromSeconds(5);
+    public TimeSpan Delay { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// The time to add to the <see cref="Delay"/>.
     /// </summary>
-    public TimeSpan DelayIncrement = TimeSpan.FromSeconds(10);
+    public TimeSpan DelayIncrement { get; set; } = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// The maximum <see cref="Delay"/>.
     /// </summary>
-    public TimeSpan DelayMax = TimeSpan.FromMinutes(9);
+    public TimeSpan DelayMax { get; set; } = TimeSpan.FromMinutes(9);
 
-    private static readonly ILog log = LogManager.GetLogger<RandomWalk>();
-    private CancellationTokenSource cancel;
+    private readonly ILogger<RandomWalk> _logger = IpfsEngine.LoggerFactory.CreateLogger<RandomWalk>();
+    private CancellationTokenSource? cancel;
 
     /// <summary>
     /// The Distributed Hash Table to query.
     /// </summary>
-    public IDhtApi Dht { get; set; }
+    public IDhtApi? Dht { get; set; }
 
     /// <summary>
     /// Start a background process that will run a random walk every <see cref="Delay"/>.
@@ -46,13 +43,13 @@ public class RandomWalk : IService
     {
         if (cancel is not null)
         {
-            throw new Exception("Already started.");
+            throw new InvalidOperationException("Already started.");
         }
 
         cancel = new CancellationTokenSource();
         RunnerAsync(cancel.Token).Forget();
 
-        log.Debug("started");
+        _logger.LogDebug("Started");
         return Task.CompletedTask;
     }
 
@@ -68,7 +65,7 @@ public class RandomWalk : IService
             cancel = null;
         }
 
-        log.Debug("stopped");
+        _logger.LogDebug("Stopped");
     }
 
     /// <summary>
@@ -82,7 +79,7 @@ public class RandomWalk : IService
             {
                 await Task.Delay(Delay, cancellation);
                 await RunQueryAsync(cancellation).ConfigureAwait(false);
-                log.Debug("query finished");
+                _logger.LogDebug("Query finished");
                 Delay += DelayIncrement;
                 if (Delay > DelayMax)
                 {
@@ -95,7 +92,7 @@ public class RandomWalk : IService
             }
             catch (Exception e)
             {
-                log.Error("run query failed", e);
+                _logger.LogError(e, "Run query failed");
                 // eat all exceptions
             }
         }
@@ -109,7 +106,7 @@ public class RandomWalk : IService
             return;
         }
 
-        log.Debug("Running a query");
+        _logger.LogDebug("Running a query");
 
         // Get a random peer id.
         byte[] x = new byte[32];

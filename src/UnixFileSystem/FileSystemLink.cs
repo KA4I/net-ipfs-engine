@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable disable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,6 +24,6 @@ namespace Ipfs.Engine.UnixFileSystem
         public Cid Id { get; set; }
 
         /// <inheritdoc />
-        public long Size { get; set; }
+        public ulong Size { get; set; }
     }
 }

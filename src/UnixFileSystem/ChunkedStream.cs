@@ -1,4 +1,5 @@
-﻿using Ipfs.CoreApi;
+﻿#nullable disable
+using Ipfs.CoreApi;
 using Ipfs.Engine.Cryptography;
 using ProtoBuf;
 using System;
@@ -102,7 +103,16 @@ namespace Ipfs.Engine.UnixFileSystem
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "<Pending>")]
         public override int Read(byte[] buffer, int offset, int count)
         {
-            return ReadAsync(buffer, offset, count).GetAwaiter().GetResult();
+            // Must call the Memory<byte> overload directly. Calling ReadAsync(byte[], int, int)
+            // would route through Stream.ReadAsync base which schedules Read on the thread pool,
+            // causing infinite recursion and thread pool starvation.
+            return ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc />
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            return ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
         }
 
         /// <inheritdoc />

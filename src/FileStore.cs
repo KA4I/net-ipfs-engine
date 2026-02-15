@@ -1,23 +1,17 @@
 ﻿using Newtonsoft.Json;
 using Nito.AsyncEx;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Ipfs.Engine
+namespace Ipfs.Engine;
+
+/// <summary>
+/// A file based repository for name value pairs.
+/// </summary>
+/// <typeparam name="TName">The type used for a unique name.</typeparam>
+/// <typeparam name="TValue">The type used for the value.</typeparam>
+/// <remarks>All operations are atomic, a reader/writer lock is used.</remarks>
+public class FileStore<TName, TValue>
+    where TValue : class
 {
-    /// <summary>
-    /// A file based repository for name value pairs.
-    /// </summary>
-    /// <typeparam name="TName">The type used for a unique name.</typeparam>
-    /// <typeparam name="TValue">The type used for the value.</typeparam>
-    /// <remarks>All operations are atomic, a reader/writer lock is used.</remarks>
-    public class FileStore<TName, TValue>
-        where TValue : class
-    {
         private readonly AsyncReaderWriterLock storeLock = new();
 
         /// <summary>
@@ -30,7 +24,7 @@ namespace Ipfs.Engine
                 using StreamReader reader = new(stream);
                 using JsonTextReader jtr = new(reader);
                 JsonSerializer ser = new();
-                return await Task.FromResult(ser.Deserialize<TValue>(jtr));
+                return (await Task.FromResult(ser.Deserialize<TValue>(jtr)))!;
             };
 
         /// <summary>
@@ -55,17 +49,16 @@ namespace Ipfs.Engine
         public Func<Stream, TName, CancellationToken, Task<TValue>> Deserialize { get; set; } = JsonDeserialize;
 
         /// <summary>
-        /// The fully qualififed path to a directory that stores the name value pairs.
-        /// </summary>
-        /// <value>A fully qualified path.</value>
-        /// <remarks>The directory must already exist.</remarks>
-        public string Folder { get; set; }
+    /// The fully qualified path to a directory that stores the name value pairs.
+    /// </summary>
+    /// <value>A fully qualified path.</value>
+    /// <remarks>The directory must already exist.</remarks>
+    public required string Folder { get; set; }
 
-        /// <summary>
-        /// A function that converts the case insensitive key to a name.
-        /// </summary>
-        public Func<string, TName> KeyToName { get; set; }
-
+    /// <summary>
+    /// A function that converts the case insensitive key to a name.
+    /// </summary>
+    public required Func<string, TName> KeyToName { get; set; }
         /// <summary>
         /// Gets the names in the file store.
         /// </summary>
@@ -77,10 +70,10 @@ namespace Ipfs.Engine
         /// <summary>
         /// A function that converts the name to a case insensitive key name.
         /// </summary>
-        public Func<TName, string> NameToKey { get; set; }
+    public required Func<TName, string> NameToKey { get; set; }
 
         /// <summary>
-        /// Sends the value to the stream.
+        /// Writes the entity to the stream.
         /// </summary>
         /// <value>Defaults to using <see cref="JsonSerialize"/>.</value>
         public Func<Stream, TName, TValue, CancellationToken, Task> Serialize { get; set; } = JsonSerialize;
@@ -89,7 +82,7 @@ namespace Ipfs.Engine
         /// Gets the values in the file store.
         /// </summary>
         /// <value>A sequence of <typeparamref name="TValue"/>.</value>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "<Pending>")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Synchronous enumeration required by IEnumerable contract")]
         public IEnumerable<TValue> Values => Directory
             .EnumerateFiles(Folder)
             .Select(
@@ -102,6 +95,24 @@ namespace Ipfs.Engine
                         .GetAwaiter()
                         .GetResult();
                 });
+
+        /// <summary>
+        /// Asynchronously gets the values in the file store.
+        /// </summary>
+        /// <param name="cancel">
+        /// Is used to stop the task. When cancelled, the <see cref="TaskCanceledException"/> is raised.
+        /// </param>
+        /// <returns>An asynchronous enumerable of values.</returns>
+        public async IAsyncEnumerable<TValue> GetValuesAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancel = default)
+        {
+            foreach (string path in Directory.EnumerateFiles(Folder))
+            {
+                cancel.ThrowIfCancellationRequested();
+                using FileStream content = File.OpenRead(path);
+                TName name = KeyToName(Path.GetFileName(path));
+                yield return await Deserialize(content, name, cancel).ConfigureAwait(false);
+            }
+        }
 
         /// <summary>
         /// Determines if the name exists.
@@ -138,7 +149,7 @@ namespace Ipfs.Engine
         /// </exception>
         public async Task<TValue> GetAsync(TName name, CancellationToken cancel = default)
         {
-            TValue value = await TryGetAsync(name, cancel).ConfigureAwait(false);
+            TValue? value = await TryGetAsync(name, cancel).ConfigureAwait(false);
             return value ?? throw new KeyNotFoundException($"Missing '{name}'.");
         }
 
@@ -247,7 +258,7 @@ namespace Ipfs.Engine
         /// A task that represents the asynchronous operation. The task's result is a <typeparamref
         /// name="TValue"/> or <b>null</b> if the <paramref name="name"/> does not exist.
         /// </returns>
-        public async Task<TValue> TryGetAsync(TName name, CancellationToken cancel = default)
+        public async Task<TValue?> TryGetAsync(TName name, CancellationToken cancel = default)
         {
             string path = GetPath(name);
             using (await storeLock.ReaderLockAsync(cancel).ConfigureAwait(false))
@@ -262,4 +273,3 @@ namespace Ipfs.Engine
             }
         }
     }
-}

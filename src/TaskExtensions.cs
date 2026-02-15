@@ -1,7 +1,4 @@
-﻿using Common.Logging;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.Logging;
 
 namespace Ipfs.Engine;
 
@@ -19,8 +16,8 @@ public static class TaskExtensions
         _ = task.ContinueWith(
             t =>
             {
-                ILog log = LogManager.GetLogger<Task>();
-                log.Error(t.Exception?.Message);
+                ILogger logger = IpfsEngine.LoggerFactory.CreateLogger("TaskExtensions");
+                logger.LogError(t.Exception, "Unobserved task exception");
             },
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
@@ -39,7 +36,7 @@ public static class TaskExtensions
             {
                 if (t.Exception is not null)
                 {
-                    handler(t.Exception.InnerException);
+                    handler(t.Exception.InnerException!);
                 }
             },
             CancellationToken.None,

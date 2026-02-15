@@ -1,92 +1,80 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿namespace Ipfs.Engine.Migration;
 
-namespace Ipfs.Engine.Migration
+internal class MigrateTo1 : IMigration
 {
-    class MigrateTo1 : IMigration
+    private class Pin1
     {
-        class Pin1
+        public required Cid Id { get; set; }
+    }
+
+    public int Version => 1;
+
+    public bool CanUpgrade => true;
+
+    public bool CanDowngrade => true;
+
+    public async Task DowngradeAsync(IpfsEngine ipfs, CancellationToken cancel = default)
+    {
+        string path = Path.Combine(ipfs.Options.Repository.Folder, "pins");
+        DirectoryInfo folder = new(path);
+        if (!folder.Exists)
         {
-            public Cid Id;
+            return;
         }
 
-        public int Version => 1;
-
-        public bool CanUpgrade => true;
-
-        public bool CanDowngrade => true;
-
-        public async Task DowngradeAsync(IpfsEngine ipfs, CancellationToken cancel = default(CancellationToken))
+        FileStore<Cid, Pin1> store = new()
         {
-            var path = Path.Combine(ipfs.Options.Repository.Folder, "pins");
-            var folder = new DirectoryInfo(path);
-            if (!folder.Exists)
+            Folder = path,
+            NameToKey = (cid) => cid.Hash.ToBase32(),
+            KeyToName = (key) => new MultiHash(key.FromBase32())
+        };
+
+        var files = folder.EnumerateFiles().Where(fi => fi.Length != 0);
+        foreach (FileInfo fi in files)
+        {
+            try
             {
-                return;
+                var name = store.KeyToName(fi.Name);
+                var pin = await store.GetAsync(name, cancel).ConfigureAwait(false);
+                await using (File.Create(Path.Combine(store.Folder, pin.Id))) { }
+                File.Delete(store.GetPath(name));
             }
-
-            var store = new FileStore<Cid, Pin1>
+            catch
             {
-                Folder = path,
-                NameToKey = (cid) => cid.Hash.ToBase32(),
-                KeyToName = (key) => new MultiHash(key.FromBase32())
-            };
-
-            var files = folder.EnumerateFiles()
-                .Where(fi => fi.Length != 0);
-            foreach (var fi in files)
-            {
-                try
-                {
-                    var name = store.KeyToName(fi.Name);
-                    var pin = await store.GetAsync(name, cancel).ConfigureAwait(false);
-                    File.Create(Path.Combine(store.Folder, pin.Id));
-                    File.Delete(store.GetPath(name));
-                }
-                catch
-                {
-
-                }
+                // Migration best-effort; skip corrupt entries.
             }
         }
+    }
 
-        public async Task UpgradeAsync(IpfsEngine ipfs, CancellationToken cancel = default(CancellationToken))
+    public async Task UpgradeAsync(IpfsEngine ipfs, CancellationToken cancel = default)
+    {
+        string path = Path.Combine(ipfs.Options.Repository.Folder, "pins");
+        DirectoryInfo folder = new(path);
+        if (!folder.Exists)
         {
-            var path = Path.Combine(ipfs.Options.Repository.Folder, "pins");
-            var folder = new DirectoryInfo(path);
-            if (!folder.Exists)
-            {
-                return;
-            }
-
-            var store = new FileStore<Cid, Pin1>
-            {
-                Folder = path,
-                NameToKey = (cid) => cid.Hash.ToBase32(),
-                KeyToName = (key) => new MultiHash(key.FromBase32())
-            };
-
-            var files = folder.EnumerateFiles()
-                .Where(fi => fi.Length == 0);
-            foreach (var fi in files)
-            {
-                try
-                {
-                    var cid = Cid.Decode(fi.Name);
-                    await store.PutAsync(cid, new Pin1 { Id = cid }, cancel).ConfigureAwait(false);
-                    File.Delete(fi.FullName);
-                }
-                catch
-                {
-
-                }
-            }
+            return;
         }
 
+        FileStore<Cid, Pin1> store = new()
+        {
+            Folder = path,
+            NameToKey = (cid) => cid.Hash.ToBase32(),
+            KeyToName = (key) => new MultiHash(key.FromBase32())
+        };
+
+        var files = folder.EnumerateFiles().Where(fi => fi.Length == 0);
+        foreach (FileInfo fi in files)
+        {
+            try
+            {
+                Cid cid = Cid.Decode(fi.Name);
+                await store.PutAsync(cid, new Pin1 { Id = cid }, cancel).ConfigureAwait(false);
+                File.Delete(fi.FullName);
+            }
+            catch
+            {
+                // Migration best-effort; skip corrupt entries.
+            }
+        }
     }
 }

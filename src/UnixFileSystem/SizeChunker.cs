@@ -1,5 +1,6 @@
 ﻿using Ipfs.CoreApi;
 using Ipfs.Engine.Cryptography;
+using Ipfs.Engine.CoreApi;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,6 +16,8 @@ namespace Ipfs.Engine.UnixFileSystem
     /// </summary>
     public class SizeChunker
     {
+        private const int DefaultChunkSize = 256 * 1024;
+
         /// <summary>
         ///   Performs the chunking.
         /// </summary>
@@ -48,9 +51,8 @@ namespace Ipfs.Engine.UnixFileSystem
             KeyChain keyChain,
             CancellationToken cancel)
         {
-            var protecting = !string.IsNullOrWhiteSpace(options.ProtectionKey);
-            var nodes = new List<FileSystemNode> ();
-            var chunkSize = options.ChunkSize;
+            var nodes = new List<FileSystemNode>();
+            var chunkSize = ParseChunkSize(options.Chunker);
             var chunk = new byte[chunkSize];
             var chunking = true;
             var totalBytes = 0UL;
@@ -86,44 +88,42 @@ namespace Ipfs.Engine.UnixFileSystem
                         Bytes = totalBytes
                     });
                 }
-                // if protected data, then get CMS structure.
-                if (protecting)
+
+                // CMS encryption (ProtectionKey)
+                if (!string.IsNullOrWhiteSpace(options.ProtectionKey))
                 {
-                    // TODO: Inefficent to copy chunk, use ArraySegment in DataMessage.Data
                     var plain = new byte[length];
                     Array.Copy(chunk, plain, length);
                     var cipher = await keyChain.CreateProtectedDataAsync(options.ProtectionKey, plain, cancel).ConfigureAwait(false);
-                    var cid = await blockService.PutAsync(
+                    var stat = await blockService.PutAsync(
                         data: cipher,
-                        contentType: "cms",
-                        multiHash: options.Hash,
-                        encoding: options.Encoding,
+                        cidCodec: "cms",
+                        hash: !string.IsNullOrEmpty(options.Hash) ? MultiHash.ComputeHash(cipher, options.Hash) : null,
                         pin: options.Pin,
                         cancel: cancel).ConfigureAwait(false);
                     nodes.Add(new FileSystemNode
                     {
-                        Id = cid,
-                        Size = length,
+                        Id = stat.Id,
+                        Size = (ulong)length,
                         DagSize = cipher.Length,
                         Links = FileSystemLink.None
                     });
                 }
-                else if (options.RawLeaves)
+                else if (options.RawLeaves == true)
                 {
                     // TODO: Inefficent to copy chunk, use ArraySegment in DataMessage.Data
                     var data = new byte[length];
                     Array.Copy(chunk, data, length);
-                    var cid = await blockService.PutAsync(
+                    var stat = await blockService.PutAsync(
                         data: data,
-                        contentType: "raw",
-                        multiHash: options.Hash,
-                        encoding: options.Encoding,
+                        cidCodec: "raw",
+                        hash: !string.IsNullOrEmpty(options.Hash) ? MultiHash.ComputeHash(data, options.Hash) : null,
                         pin: options.Pin,
                         cancel: cancel).ConfigureAwait(false);
                     nodes.Add(new FileSystemNode
                     {
-                        Id = cid,
-                        Size = length,
+                        Id = stat.Id,
+                        Size = (ulong)length,
                         DagSize = length,
                         Links = FileSystemLink.None
                     });
@@ -148,18 +148,19 @@ namespace Ipfs.Engine.UnixFileSystem
                     var dag = new DagNode(pb.ToArray(), null, options.Hash);
 
                     // Save it.
-                    dag.Id = await blockService.PutAsync(
+                    var stat = await blockService.PutAsync(
                         data: dag.ToArray(),
-                        multiHash: options.Hash,
-                        encoding: options.Encoding,
+                        cidCodec: "dag-pb",
+                        hash: !string.IsNullOrEmpty(options.Hash) ? MultiHash.ComputeHash(dag.ToArray(), options.Hash) : null,
                         pin: options.Pin,
                         cancel: cancel).ConfigureAwait(false);
+                    dag.Id = stat.Id;
 
                     var node = new FileSystemNode
                     {
                         Id = dag.Id,
-                        Size = length,
-                        DagSize = dag.Size,
+                        Size = (ulong)length,
+                        DagSize = (long)dag.Size,
                         Links = FileSystemLink.None
                     };
                     nodes.Add(node);
@@ -167,6 +168,22 @@ namespace Ipfs.Engine.UnixFileSystem
             }
 
             return nodes;
+        }
+
+        private static int ParseChunkSize(string? chunker)
+        {
+            if (string.IsNullOrEmpty(chunker))
+                return DefaultChunkSize;
+
+            // Parse "size-262144" format
+            if (chunker.StartsWith("size-", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(chunker.AsSpan(5), out int size)
+                && size > 0)
+            {
+                return size;
+            }
+
+            return DefaultChunkSize;
         }
     }
 }

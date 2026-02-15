@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable disable
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -35,7 +36,7 @@ namespace Ipfs.Engine.UnixFileSystem
         public Cid Id { get; set; }
 
         /// <inheritdoc />
-        public long Size { get; set; }
+        public ulong Size { get; set; }
 
         /// <summary>
         ///   The name of the node.
@@ -57,7 +58,7 @@ namespace Ipfs.Engine.UnixFileSystem
             {
                 Name = String.IsNullOrWhiteSpace(name) ? Name : name,
                 Id = Id,
-                Size = DagSize
+                Size = (ulong)DagSize
             };
         }
     }

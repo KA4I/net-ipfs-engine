@@ -64,8 +64,8 @@ namespace Ipfs.Engine.UnixFileSystem
             KeyChain keyChain,
             CancellationToken cancel)
         {
-            var block = await blockService.GetAsync(id, cancel).ConfigureAwait(false);
-            return block.DataStream;
+            var data = await blockService.GetAsync(id, cancel).ConfigureAwait(false);
+            return new MemoryStream(data, false);
         }
 
         static async Task<Stream> CreateDagProtoBufStreamAsync(
@@ -74,8 +74,8 @@ namespace Ipfs.Engine.UnixFileSystem
             KeyChain keyChain,
             CancellationToken cancel)
         {
-            var block = await blockService.GetAsync(id, cancel).ConfigureAwait(false);
-            var dag = new DagNode(block.DataStream);
+            var data = await blockService.GetAsync(id, cancel).ConfigureAwait(false);
+            var dag = new DagNode(new MemoryStream(data, false));
             var dm = Serializer.Deserialize<DataMessage>(dag.DataStream);
 
             if (dm.Type != DataType.File)
@@ -103,8 +103,8 @@ namespace Ipfs.Engine.UnixFileSystem
             KeyChain keyChain,
             CancellationToken cancel)
         {
-            var block = await blockService.GetAsync(id, cancel).ConfigureAwait(false);
-            var plain = await keyChain.ReadProtectedDataAsync(block.DataBytes, cancel).ConfigureAwait(false);
+            var data = await blockService.GetAsync(id, cancel).ConfigureAwait(false);
+            var plain = await keyChain.ReadProtectedDataAsync(data, cancel).ConfigureAwait(false);
             return new MemoryStream(plain, false);
         }
     }
