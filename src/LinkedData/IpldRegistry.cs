@@ -1,18 +1,10 @@
-﻿using Ipfs;
-using Ipfs.Registry;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace Ipfs.Engine.LinkedData;
 
-namespace Ipfs.Engine.LinkedData
+/// <summary>
+///   Metadata on <see cref="ILinkedDataFormat"/>.
+/// </summary>
+public static class IpldRegistry
 {
-    /// <summary>
-    ///   Metadata on <see cref="ILinkedDataFormat"/>.
-    /// </summary>
-    public static class IpldRegistry
-    {
         /// <summary>
         ///   All the supported IPLD formats.
         /// </summary>
@@ -53,7 +45,5 @@ namespace Ipfs.Engine.LinkedData
         public static void Deregister(string name)
         {
             Formats.Remove(name);
-        }
-
     }
 }

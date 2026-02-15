@@ -36,7 +36,7 @@ namespace Ipfs.Engine.LinkedData
                 .Select(link => new DagLink(
                     link["Name"].AsString(),
                     Cid.Decode(link["Cid"]["/"].AsString()),
-                    link["Size"].AsNumber().ToInt64Checked()));
+                    (ulong)link["Size"].AsNumber().ToInt64Checked()));
             DagNode node = new(data["data"].GetByteString(), links);
             using MemoryStream ms = new();
             node.Write(ms);
