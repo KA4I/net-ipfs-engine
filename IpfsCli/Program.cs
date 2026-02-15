@@ -3,8 +3,9 @@ using Common.Logging.Simple;
 using Ipfs.Cli.Commands;
 using Ipfs.CoreApi;
 using Ipfs.Engine;
-using Ipfs.Http;
+using Ipfs.Http.Client;
 using McMaster.Extensions.CommandLineUtils;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System.Reflection;
 
@@ -32,6 +33,8 @@ namespace Ipfs.Cli;
 [Subcommand(typeof(BootstrapCommand))]
 [Subcommand(typeof(SwarmCommand))]
 [Subcommand(typeof(DhtCommand))]
+[Subcommand(typeof(DagCommand))]
+[Subcommand(typeof(PingCommand))]
 [Subcommand(typeof(ConfigCommand))]
 [Subcommand(typeof(VersionCommand))]
 [Subcommand(typeof(ShutdownCommand))]
@@ -85,10 +88,40 @@ class Program : CommandBase
     }
 
     [Option("--api <url>",  Description = "Use a specific API instance")]
-    public string ApiUrl { get; set;  } = IpfsClient.DefaultApiUri.ToString();
+    public string ApiUrl { get; set; }
 
     [Option("-L|--local", Description = "Run the command locally, instead of using the daemon")]
     public bool UseLocalEngine { get; set; }
+
+    string GetApiUrl()
+    {
+        if (!string.IsNullOrEmpty(ApiUrl))
+            return ApiUrl;
+
+        // Try to read from the IPFS config file
+        try
+        {
+            var path = Environment.GetEnvironmentVariable("IPFS_PATH")
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".csipfs");
+            var configPath = Path.Combine(path, "config");
+            if (File.Exists(configPath))
+            {
+                var json = File.ReadAllText(configPath);
+                var config = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var addr = (string)config.SelectToken("Addresses.API");
+                if (addr != null)
+                {
+                    return addr
+                        .Replace("/ip4/", "http://")
+                        .Replace("/ip6/", "http://")
+                        .Replace("/tcp/", ":");
+                }
+            }
+        }
+        catch { /* fall through to default */ }
+
+        return "http://localhost:5001";
+    }
 
     [Option("--enc", Description = "The output type (json, xml, or text)")]
     public string OutputEncoding { get; set; } = "text";
@@ -125,7 +158,11 @@ class Program : CommandBase
                 }
                 else
                 {
-                    coreApi = new IpfsClient(ApiUrl);
+                    var services = new ServiceCollection();
+                    var apiUri = new Uri(GetApiUrl());
+                    services.AddIpfsClient(apiUri);
+                    var sp = services.BuildServiceProvider();
+                    coreApi = sp.GetRequiredService<IpfsContext>();
                 }
             }
 

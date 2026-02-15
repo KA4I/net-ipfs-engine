@@ -92,7 +92,7 @@ internal class RepoMigrateCommand : CommandBase
         string passphrase = "this is not a secure pass phrase";
         IpfsEngine ipfs = new(passphrase.ToCharArray());
 
-        await ipfs.MigrationManager.MirgrateToVersionAsync(Version);
+        await ipfs.MigrationManager.MigrateToVersionAsync(Version);
         return 0;
     }
 }

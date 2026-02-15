@@ -8,6 +8,7 @@ namespace Ipfs.Cli.Commands;
 [Subcommand(typeof(SwarmDisconnectCommand))]
 [Subcommand(typeof(SwarmPeersCommand))]
 [Subcommand(typeof(SwarmAddrsCommand))]
+[Subcommand(typeof(SwarmFiltersCommand))]
 internal class SwarmCommand : CommandBase
 {
     public Program Parent { get; set; }
@@ -89,6 +90,76 @@ internal class SwarmAddrsCommand : CommandBase
                 writer.WriteLine(address);
             }
         });
+        return 0;
+    }
+}
+
+[Command(Name = "filters", Description = "Manage address filters")]
+[Subcommand(typeof(SwarmFiltersListCommand))]
+[Subcommand(typeof(SwarmFiltersAddCommand))]
+[Subcommand(typeof(SwarmFiltersRmCommand))]
+internal class SwarmFiltersCommand : CommandBase
+{
+    public SwarmCommand Parent { get; set; }
+
+    protected override Task<int> OnExecute(CommandLineApplication app)
+    {
+        app.ShowHelp();
+        return Task.FromResult(0);
+    }
+}
+
+[Command(Name = "ls", Description = "List address filters")]
+internal class SwarmFiltersListCommand : CommandBase
+{
+    private SwarmFiltersCommand Parent { get; set; }
+
+    protected override async Task<int> OnExecute(CommandLineApplication app)
+    {
+        Program Program = Parent.Parent.Parent;
+        var filters = await Program.CoreApi.Swarm.ListAddressFiltersAsync(persist: false);
+        foreach (var filter in filters)
+        {
+            app.Out.WriteLine(filter.ToString());
+        }
+        return 0;
+    }
+}
+
+[Command(Name = "add", Description = "Add an address filter")]
+internal class SwarmFiltersAddCommand : CommandBase
+{
+    [Argument(0, "addr", "A multiaddress filter")]
+    [Required]
+    public string Address { get; set; }
+
+    private SwarmFiltersCommand Parent { get; set; }
+
+    protected override async Task<int> OnExecute(CommandLineApplication app)
+    {
+        Program Program = Parent.Parent.Parent;
+        var filter = await Program.CoreApi.Swarm.AddAddressFilterAsync(Address, persist: false);
+        if (filter != null)
+            app.Out.WriteLine(filter.ToString());
+        return 0;
+    }
+}
+
+[Command(Name = "rm", Description = "Remove an address filter")]
+internal class SwarmFiltersRmCommand : CommandBase
+{
+    [Argument(0, "addr", "A multiaddress filter")]
+    [Required]
+    public string Address { get; set; }
+
+    private SwarmFiltersCommand Parent { get; set; }
+
+    protected override async Task<int> OnExecute(CommandLineApplication app)
+    {
+        Program Program = Parent.Parent.Parent;
+        var filter = await Program.CoreApi.Swarm.RemoveAddressFilterAsync(Address, persist: false);
+        if (filter != null)
+            app.Out.WriteLine(filter.ToString());
         return 0;
     }
 }

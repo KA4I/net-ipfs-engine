@@ -46,11 +46,10 @@ internal class BitswapUnwantCommand : CommandBase
 
     private BitswapCommand Parent { get; set; }
 
-    protected override async Task<int> OnExecute(CommandLineApplication app)
+    protected override Task<int> OnExecute(CommandLineApplication app)
     {
-        Program Program = Parent.Parent;
-        await Program.CoreApi.Bitswap.UnwantAsync(Cid);
-        return 0;
+        app.Error.WriteLine("Bitswap unwant is not supported in this version.");
+        return Task.FromResult(0);
     }
 }
 

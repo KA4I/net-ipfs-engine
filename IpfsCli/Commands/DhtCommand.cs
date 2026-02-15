@@ -6,6 +6,10 @@ namespace Ipfs.Cli.Commands;
 [Command(Name = "dht", Description = "Query the DHT for values or peers")]
 [Subcommand(typeof(DhtFindPeerCommand))]
 [Subcommand(typeof(DhtFindProvidersCommand))]
+[Subcommand(typeof(DhtGetCommand))]
+[Subcommand(typeof(DhtPutCommand))]
+[Subcommand(typeof(DhtProvideCommand))]
+[Subcommand(typeof(DhtQueryCommand))]
 internal class DhtCommand : CommandBase
 {
     public Program Parent { get; set; }
@@ -63,6 +67,85 @@ internal class DhtFindProvidersCommand : CommandBase
             foreach (Peer peer in peers)
             {
                 writer.WriteLine(peer.Id.ToString());
+            }
+        });
+    }
+}
+
+[Command(Name = "get", Description = "Get a value from the DHT")]
+internal class DhtGetCommand : CommandBase
+{
+    [Argument(0, "key", "The key to look up")]
+    [Required]
+    public string Key { get; set; }
+
+    private DhtCommand Parent { get; set; }
+
+    protected override async Task<int> OnExecute(CommandLineApplication app)
+    {
+        Program Program = Parent.Parent;
+        var data = await Program.CoreApi.Dht.GetAsync(System.Text.Encoding.UTF8.GetBytes(Key));
+        app.Out.WriteLine(Convert.ToBase64String(data));
+        return 0;
+    }
+}
+
+[Command(Name = "put", Description = "Put a value into the DHT")]
+internal class DhtPutCommand : CommandBase
+{
+    [Argument(0, "key", "The key")]
+    [Required]
+    public string Key { get; set; }
+
+    private DhtCommand Parent { get; set; }
+
+    protected override async Task<int> OnExecute(CommandLineApplication app)
+    {
+        Program Program = Parent.Parent;
+        var task = Program.CoreApi.Dht.PutAsync(
+            System.Text.Encoding.UTF8.GetBytes(Key),
+            out _);
+        await task;
+        return 0;
+    }
+}
+
+[Command(Name = "provide", Description = "Announce that you are providing a CID")]
+internal class DhtProvideCommand : CommandBase
+{
+    [Argument(0, "cid", "The CID to provide")]
+    [Required]
+    public string CidArg { get; set; }
+
+    private DhtCommand Parent { get; set; }
+
+    protected override async Task<int> OnExecute(CommandLineApplication app)
+    {
+        Program Program = Parent.Parent;
+        await Program.CoreApi.Dht.ProvideAsync(Cid.Decode(CidArg));
+        return 0;
+    }
+}
+
+[Command(Name = "query", Description = "Find the closest peers to a given key")]
+internal class DhtQueryCommand : CommandBase
+{
+    [Argument(0, "peerid", "The peer ID to query for")]
+    [Required]
+    public string PeerId { get; set; }
+
+    private DhtCommand Parent { get; set; }
+
+    protected override async Task<int> OnExecute(CommandLineApplication app)
+    {
+        Program Program = Parent.Parent;
+        var peer = await Program.CoreApi.Dht.FindPeerAsync(new MultiHash(PeerId));
+        return Program.Output(app, peer, (data, writer) =>
+        {
+            writer.WriteLine(data.Id.ToString());
+            foreach (MultiAddress a in data.Addresses)
+            {
+                writer.WriteLine($"  {a}");
             }
         });
     }

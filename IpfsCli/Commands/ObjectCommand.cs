@@ -1,5 +1,4 @@
-﻿using Ipfs.Engine.UnixFileSystem;
-using McMaster.Extensions.CommandLineUtils;
+﻿using McMaster.Extensions.CommandLineUtils;
 using System.ComponentModel.DataAnnotations;
 
 namespace Ipfs.Cli.Commands;
@@ -29,21 +28,10 @@ internal class ObjectDumpCommand : CommandBase
 
     private ObjectCommand Parent { get; set; }
 
-    protected override async Task<int> OnExecute(CommandLineApplication app)
+    protected override Task<int> OnExecute(CommandLineApplication app)
     {
-        Program Program = Parent.Parent;
-        Node node = new();
-        IDataBlock block = await Program.CoreApi.Block.GetAsync(Cid);
-        node.Dag = new DagNode(block.DataStream);
-        node.DataMessage = ProtoBuf.Serializer.Deserialize<DataMessage>(node.Dag.DataStream);
-
-        return Program.Output(app, node, null);
-    }
-
-    private class Node
-    {
-        public DagNode Dag;
-        public DataMessage DataMessage;
+        app.Error.WriteLine("Object API has been removed.");
+        return Task.FromResult(0);
     }
 }
 
@@ -56,12 +44,10 @@ internal class ObjectGetCommand : CommandBase
 
     private ObjectCommand Parent { get; set; }
 
-    protected override async Task<int> OnExecute(CommandLineApplication app)
+    protected override Task<int> OnExecute(CommandLineApplication app)
     {
-        Program Program = Parent.Parent;
-        DagNode node = await Program.CoreApi.Object.GetAsync(Cid);
-
-        return Program.Output(app, node, null);
+        app.Error.WriteLine("Object API has been removed.");
+        return Task.FromResult(0);
     }
 }
 
@@ -74,18 +60,10 @@ internal class ObjectLinksCommand : CommandBase
 
     private ObjectCommand Parent { get; set; }
 
-    protected override async Task<int> OnExecute(CommandLineApplication app)
+    protected override Task<int> OnExecute(CommandLineApplication app)
     {
-        Program Program = Parent.Parent;
-        IEnumerable<IMerkleLink> links = await Program.CoreApi.Object.LinksAsync(Cid);
-
-        return Program.Output(app, links, (data, writer) =>
-        {
-            foreach (IMerkleLink link in data)
-            {
-                writer.WriteLine($"{link.Id.Encode()} {link.Size} {link.Name}");
-            }
-        });
+        app.Error.WriteLine("Object API has been removed.");
+        return Task.FromResult(0);
     }
 }
 
@@ -98,11 +76,9 @@ internal class ObjectStatCommand : CommandBase
 
     private ObjectCommand Parent { get; set; }
 
-    protected override async Task<int> OnExecute(CommandLineApplication app)
+    protected override Task<int> OnExecute(CommandLineApplication app)
     {
-        Program Program = Parent.Parent;
-        CoreApi.ObjectStat stat = await Program.CoreApi.Object.StatAsync(Cid);
-
-        return Program.Output(app, stat, null);
+        app.Error.WriteLine("Object API has been removed.");
+        return Task.FromResult(0);
     }
 }

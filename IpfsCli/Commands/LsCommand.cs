@@ -14,7 +14,7 @@ internal class LsCommand : CommandBase
 
     protected override async Task<int> OnExecute(CommandLineApplication app)
     {
-        IFileSystemNode node = await Parent.CoreApi.FileSystem.ListFileAsync(IpfsPath);
+        IFileSystemNode node = await Parent.CoreApi.FileSystem.ListAsync(IpfsPath);
         return Parent.Output(app, node, (data, writer) =>
         {
             foreach (IFileSystemLink link in data.Links)

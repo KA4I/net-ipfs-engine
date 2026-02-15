@@ -1,4 +1,5 @@
-﻿using McMaster.Extensions.CommandLineUtils;
+﻿using Ipfs.CoreApi;
+using McMaster.Extensions.CommandLineUtils;
 using System.ComponentModel.DataAnnotations;
 
 namespace Ipfs.Cli.Commands;
@@ -31,8 +32,8 @@ internal class BlockGetCommand : CommandBase
     protected override async Task<int> OnExecute(CommandLineApplication app)
     {
         Program Program = Parent.Parent;
-        IDataBlock block = await Program.CoreApi.Block.GetAsync(Cid);
-        await block.DataStream.CopyToAsync(Console.OpenStandardOutput());
+        byte[] data = await Program.CoreApi.Block.GetAsync(Cid);
+        await Console.OpenStandardOutput().WriteAsync(data);
 
         return 0;
     }
@@ -74,9 +75,9 @@ internal class BlockStatCommand : CommandBase
     protected override async Task<int> OnExecute(CommandLineApplication app)
     {
         Program Program = Parent.Parent;
-        IDataBlock block = await Program.CoreApi.Block.StatAsync(Cid);
+        IBlockStat stat = await Program.CoreApi.Block.StatAsync(Cid);
 
-        return Program.Output(app, block, (data, writer) =>
+        return Program.Output(app, stat, (data, writer) =>
         {
             writer.WriteLine($"{data.Id.Encode()} {data.Size}");
         });
@@ -102,14 +103,14 @@ internal class BlockPutCommand : CommandBase
     {
         Program Program = Parent.Parent;
         byte[] blockData = File.ReadAllBytes(BlockPath);
-        Cid cid = await Program.CoreApi.Block.PutAsync
+        IBlockStat stat = await Program.CoreApi.Block.PutAsync
         (
             data: blockData,
             pin: Pin,
-            multiHash: MultiHashType
+            hash: MultiHashType != MultiHash.DefaultAlgorithmName ? new MultiHash(MultiHashType, new byte[0]) : null
         );
 
-        return Program.Output(app, cid, (data, writer) =>
+        return Program.Output(app, stat.Id, (data, writer) =>
         {
             writer.WriteLine($"Added {data.Encode()}");
         });

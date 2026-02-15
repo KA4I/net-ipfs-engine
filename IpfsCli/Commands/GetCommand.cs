@@ -59,7 +59,7 @@ internal class GetCommand : CommandBase
             IpfsFile first = new()
             {
                 Path = zip == null ? "" : IpfsPath,
-                Node = await Parent.CoreApi.FileSystem.ListFileAsync(IpfsPath)
+                Node = await Parent.CoreApi.FileSystem.ListAsync(IpfsPath)
             };
             _ = fetch.Post(first);
             await fetch.Completion;
@@ -80,7 +80,7 @@ internal class GetCommand : CommandBase
                 IpfsFile next = new()
                 {
                     Path = Path.Combine(file.Path, link.Name),
-                    Node = await Parent.CoreApi.FileSystem.ListFileAsync(link.Id)
+                    Node = await Parent.CoreApi.FileSystem.ListAsync(link.Id)
                 };
                 ++requested;
                 _ = fetch.Post(next);
