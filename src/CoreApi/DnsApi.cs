@@ -1,19 +1,14 @@
 ﻿using Ipfs.CoreApi;
 using Makaretu.Dns;
 using PeerTalk;
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Ipfs.Engine.CoreApi
-{
+namespace Ipfs.Engine.CoreApi;
     internal class DnsApi(IpfsEngine ipfs) : IDnsApi
     {
         public async Task<string> ResolveAsync(string name, bool recursive = false, CancellationToken cancel = default)
         {
             // Find the TXT dnslink in either <name> or _dnslink.<name>.
-            string link = null;
+            string? link = null;
             using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancel))
             {
                 try
@@ -42,14 +37,13 @@ namespace Ipfs.Engine.CoreApi
         private async Task<string> FindAsync(string name, CancellationToken cancel)
         {
             Message response = await ipfs.Options.Dns.QueryAsync(name, DnsType.TXT, cancel).ConfigureAwait(false);
-            string link = response.Answers
+            string? link = response.Answers
                 .OfType<TXTRecord>()
                 .SelectMany(txt => txt.Strings)
                 .Where(s => s.StartsWith("dnslink="))
                 .Select(s => s[8..])
                 .FirstOrDefault();
 
-            return link ?? throw new Exception($"'{name}' is missing a TXT record with a dnslink.");
+            return link ?? throw new InvalidOperationException($"'{name}' is missing a TXT record with a dnslink.");
         }
     }
-}

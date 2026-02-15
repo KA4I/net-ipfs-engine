@@ -1,116 +1,99 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Ipfs.CoreApi;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace Ipfs.Engine.CoreApi
+namespace Ipfs.Engine.CoreApi;
+
+internal class ConfigApi(IpfsEngine ipfs) : IConfigApi
 {
-    class ConfigApi : IConfigApi
+    private static readonly JObject defaultConfiguration = JObject.Parse("""
     {
-        static JObject defaultConfiguration = JObject.Parse(@"{
-  ""Addresses"": {
-    ""API"": ""/ip4/127.0.0.1/tcp/5001"",
-    ""Gateway"": ""/ip4/127.0.0.1/tcp/8080"",
-    ""Swarm"": [
-      ""/ip4/0.0.0.0/tcp/4001"",
-      ""/ip6/::/tcp/4001""
-    ]
-  },
-}");
- 
-        IpfsEngine ipfs;
-        JObject configuration;
+      "Addresses": {
+        "API": "/ip4/127.0.0.1/tcp/5001",
+        "Gateway": "/ip4/127.0.0.1/tcp/8080",
+        "Swarm": [
+          "/ip4/0.0.0.0/tcp/4001",
+          "/ip6/::/tcp/4001"
+        ]
+      }
+    }
+    """);
 
-        public ConfigApi(IpfsEngine ipfs)
-        {
-            this.ipfs = ipfs;
-        }
+    private JObject? configuration;
 
-        public async Task<JObject> GetAsync(CancellationToken cancel = default(CancellationToken))
+    public async Task<JObject> GetAsync(CancellationToken cancel = default)
+    {
+        // If first time, load the configuration into memory.
+        if (configuration is null)
         {
-            // If first time, load the configuration into memory.
-            if (configuration == null)
+            string path = Path.Combine(ipfs.Options.Repository.ExistingFolder(), "config");
+            if (File.Exists(path))
             {
-                var path = Path.Combine(ipfs.Options.Repository.ExistingFolder(), "config");
-                if (File.Exists(path))
-                {
-                    using (var reader = File.OpenText(path))
-                    using (var jtr = new JsonTextReader(reader))
-                    {
-                        configuration = await JObject.LoadAsync(jtr).ConfigureAwait(false);
-                    }
-                }
-                else
-                {
-                    await ReplaceAsync(defaultConfiguration).ConfigureAwait(false);
-                }
+                using var reader = File.OpenText(path);
+                using var jtr = new JsonTextReader(reader);
+                configuration = await JObject.LoadAsync(jtr).ConfigureAwait(false);
             }
-
-            return configuration;
-        }
-
-        public async Task<JToken> GetAsync(string key, CancellationToken cancel = default(CancellationToken))
-        {
-            JToken config = await GetAsync(cancel).ConfigureAwait(false);
-            var keys = key.Split('.');
-            foreach (var name in keys)
+            else
             {
-                config = config[name];
-                if (config == null)
-                    throw new KeyNotFoundException($"Configuration setting '{key}' does not exist.");
+                await ReplaceAsync(defaultConfiguration).ConfigureAwait(false);
             }
-            return config;
         }
 
-        public Task ReplaceAsync(JObject config)
+        return configuration!;
+    }
+
+    public async Task<JToken> GetAsync(string key, CancellationToken cancel = default)
+    {
+        JToken? config = await GetAsync(cancel).ConfigureAwait(false);
+        var keys = key.Split('.');
+        foreach (var name in keys)
         {
+            config = ((JObject?)config)?[name];
             if (config == null)
-                throw new ArgumentNullException("config");
-
-            configuration = config;
-            return SaveAsync();
+                throw new KeyNotFoundException($"Configuration setting '{key}' does not exist.");
         }
+        return config;
+    }
 
-        public Task SetAsync(string key, string value, CancellationToken cancel = default(CancellationToken))
+    public Task ReplaceAsync(JObject config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        configuration = config;
+        return SaveAsync();
+    }
+
+    public Task SetAsync(string key, string value, CancellationToken cancel = default)
+    {
+        return SetAsync(key, JToken.FromObject(value), cancel);
+    }
+
+    public async Task SetAsync(string key, JToken value, CancellationToken cancel = default)
+    {
+        var config = await GetAsync(cancel).ConfigureAwait(false);
+
+        // If needed, create the setting owner keys.
+        var keys = key.Split('.');
+        foreach (var name in keys.Take(keys.Length - 1))
         {
-            return SetAsync(key, JToken.FromObject(value), cancel);
-        }
-
-        public async Task SetAsync(string key, JToken value, CancellationToken cancel = default(CancellationToken))
-        {
-            var config = await GetAsync(cancel).ConfigureAwait(false);
-
-            // If needed, create the setting owner keys.
-            var keys = key.Split('.');
-            foreach (var name in keys.Take(keys.Length - 1))
+            var token = config[name] as JObject;
+            if (token is null)
             {
-                var token = config[name] as JObject;
-                if (token == null)
-                {
-                    token = new JObject();
-                    config[name] = token;
-                }
-                config = token;
+                token = new JObject();
+                config[name] = token;
             }
-
-            config[keys.Last()] = value;
-            await SaveAsync().ConfigureAwait(false);
+            config = token;
         }
 
-        async Task SaveAsync()
-        {
-            var path = Path.Combine(ipfs.Options.Repository.Folder, "config");
-            using (var fs = File.OpenWrite(path))
-            using (var writer = new StreamWriter(fs))
-            using (var jtw = new JsonTextWriter(writer) { Formatting = Formatting.Indented })
-            {
-                await configuration.WriteToAsync(jtw).ConfigureAwait(false);
-            }
-        }
+        config[keys.Last()] = value;
+        await SaveAsync().ConfigureAwait(false);
+    }
+
+    private async Task SaveAsync()
+    {
+        string path = Path.Combine(ipfs.Options.Repository.Folder, "config");
+        using var fs = File.OpenWrite(path);
+        using var writer = new StreamWriter(fs);
+        using var jtw = new JsonTextWriter(writer) { Formatting = Formatting.Indented };
+        await configuration!.WriteToAsync(jtw).ConfigureAwait(false);
     }
 }

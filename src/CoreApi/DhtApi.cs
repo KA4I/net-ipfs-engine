@@ -1,52 +1,68 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Ipfs.CoreApi;
 
-namespace Ipfs.Engine.CoreApi
+namespace Ipfs.Engine.CoreApi;
+
+internal class DhtApi(IpfsEngine ipfs) : IDhtApi
 {
-    class DhtApi : IDhtApi
+    public async Task<Peer> FindPeerAsync(MultiHash id, CancellationToken cancel = default)
     {
-        IpfsEngine ipfs;
+        var dht = await ipfs.DhtService.ConfigureAwait(false);
+        return await dht.FindPeerAsync(id, cancel).ConfigureAwait(false);
+    }
 
-        public DhtApi(IpfsEngine ipfs)
-        {
-            this.ipfs = ipfs;
-        }
+    public async Task<IEnumerable<Peer>> FindProvidersAsync(Cid id, int limit = 20, Action<Peer>? providerFound = null, CancellationToken cancel = default)
+    {
+        var dht = await ipfs.DhtService.ConfigureAwait(false);
+        return await dht.FindProvidersAsync(id, limit, providerFound, cancel).ConfigureAwait(false);
+    }
 
-        public async Task<Peer> FindPeerAsync(MultiHash id, CancellationToken cancel = default(CancellationToken))
-        {
-            var dht = await ipfs.DhtService.ConfigureAwait(false);
-            return await dht.FindPeerAsync(id, cancel).ConfigureAwait(false);
-        }
+    public async Task ProvideAsync(Cid cid, bool advertise = true, CancellationToken cancel = default)
+    {
+        var dht = await ipfs.DhtService.ConfigureAwait(false);
+        await dht.ProvideAsync(cid, advertise, cancel).ConfigureAwait(false);
+    }
 
-        public async Task<IEnumerable<Peer>> FindProvidersAsync(Cid id, int limit = 20, Action<Peer> providerFound = null, CancellationToken cancel = default(CancellationToken))
-        {
-            var dht = await ipfs.DhtService.ConfigureAwait(false);
-            return await dht.FindProvidersAsync(id, limit, providerFound, cancel).ConfigureAwait(false);
-        }
+    public async Task<byte[]> GetAsync(byte[] key, CancellationToken cancel = default)
+    {
+        var dht = await ipfs.DhtService.ConfigureAwait(false);
+        return await dht.GetAsync(key, cancel).ConfigureAwait(false);
+    }
 
-        public async Task ProvideAsync(Cid cid, bool advertise = true, CancellationToken cancel = default(CancellationToken))
-        {
-            var dht = await ipfs.DhtService.ConfigureAwait(false);
-            await dht.ProvideAsync(cid, advertise, cancel).ConfigureAwait(false);
-        }
+    public Task PutAsync(byte[] key, out byte[] value, CancellationToken cancel = default)
+    {
+        value = key;
+        return PutInternalAsync(key, key, cancel);
+    }
 
-        public Task<byte[]> GetAsync(byte[] key, CancellationToken cancel = default(CancellationToken))
-        {
-            throw new NotImplementedException();
-        }
+    private async Task PutInternalAsync(byte[] key, byte[] value, CancellationToken cancel)
+    {
+        var dht = await ipfs.DhtService.ConfigureAwait(false);
+        await dht.PutAsync(key, value, cancel).ConfigureAwait(false);
+    }
 
-        public Task PutAsync(byte[] key, out byte[] value, CancellationToken cancel = default(CancellationToken))
+    public Task<bool> TryGetAsync(byte[] key, out byte[] value, CancellationToken cancel = default)
+    {
+        // The 'out' parameter in IValueStore forces synchronous resolution.
+        // Use Task.Run to avoid deadlocks on synchronization contexts.
+        byte[]? result = null;
+        bool found = false;
+        try
         {
-            throw new NotImplementedException();
+#pragma warning disable VSTHRD103 // Interface requires out parameter, cannot be fully async
+            var task = Task.Run(async () =>
+            {
+                var dht = await ipfs.DhtService.ConfigureAwait(false);
+                return await dht.GetAsync(key, cancel).ConfigureAwait(false);
+            }, cancel);
+            result = task.GetAwaiter().GetResult();
+#pragma warning restore VSTHRD103
+            found = result != null;
         }
-
-        public Task<bool> TryGetAsync(byte[] key, out byte[] value, CancellationToken cancel = default(CancellationToken))
+        catch
         {
-            throw new NotImplementedException();
+            // Swallow - key not found
         }
+        value = result!;
+        return Task.FromResult(found);
     }
 }
