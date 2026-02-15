@@ -96,6 +96,59 @@ namespace Ipfs.Server.HttpApi.V0
             };
         }
 
+        /// <summary>
+        ///   Get a raw IPNS record from the routing system (Kubo 0.40).
+        /// </summary>
+        /// <param name="arg">
+        ///   The IPNS name to retrieve the record for (e.g., /ipns/k51... or a peer ID).
+        /// </param>
+        [HttpGet, HttpPost, Route("name/get")]
+        [Produces("application/octet-stream")]
+        public async Task<IActionResult> Get(string arg)
+        {
+            if (string.IsNullOrWhiteSpace(arg))
+                throw new ArgumentNullException("arg", "The IPNS name is required.");
+
+            // Strip /ipns/ prefix if present
+            var name = arg.StartsWith("/ipns/", StringComparison.OrdinalIgnoreCase)
+                ? arg.Substring(6)
+                : arg;
+
+            // Retrieve the raw IPNS record via the DHT/value store
+            var key = Encoding.UTF8.GetBytes($"/ipns/{name}");
+            var record = await IpfsCore.Dht.GetAsync(key, Cancel);
+
+            return File(record, "application/vnd.ipfs.ipns-record");
+        }
+
+        /// <summary>
+        ///   Put a raw IPNS record into the routing system (Kubo 0.40).
+        /// </summary>
+        /// <param name="arg">
+        ///   The IPNS name/key to publish the record for.
+        /// </param>
+        /// <param name="file">
+        ///   The raw IPNS record bytes.
+        /// </param>
+        [HttpPost("name/put")]
+        public async Task<IActionResult> Put(string arg, IFormFile file)
+        {
+            if (string.IsNullOrWhiteSpace(arg))
+                throw new ArgumentNullException("arg", "The IPNS name is required.");
+            if (file == null)
+                throw new ArgumentNullException("file", "The IPNS record file is required.");
+
+            var name = arg.StartsWith("/ipns/", StringComparison.OrdinalIgnoreCase)
+                ? arg.Substring(6)
+                : arg;
+
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms, Cancel);
+
+            var key = Encoding.UTF8.GetBytes($"/ipns/{name}");
+            await IpfsCore.Dht.PutAsync(key, out _, Cancel);
+
+            return Ok(new { Name = name, Status = "ok" });
+        }
     }
 }
-

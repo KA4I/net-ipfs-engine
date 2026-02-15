@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using System.IO;
+using System.Linq;
 
 namespace Ipfs.Server.HttpApi.V0
 {
@@ -58,10 +59,14 @@ namespace Ipfs.Server.HttpApi.V0
         [HttpGet, HttpPost, Route("pin/ls")]
         public async Task<PinDetailsDto> List()
         {
-            var cids = await IpfsCore.Pin.ListAsync(Cancel);
+            var items = new List<PinListItem>();
+            await foreach (var item in IpfsCore.Pin.ListAsync(Cancel))
+            {
+                items.Add(item);
+            }
             return new PinDetailsDto
             {
-                Keys = cids.ToDictionary(cid => cid.Encode(), cid => new PinDetailDto())
+                Keys = items.ToDictionary(item => item.Cid.Encode(), item => new PinDetailDto())
             };
         }
 
@@ -79,7 +84,7 @@ namespace Ipfs.Server.HttpApi.V0
             string arg,
             bool recursive = true)
         {
-            var cids = await IpfsCore.Pin.AddAsync(arg, recursive, Cancel);
+            var cids = await IpfsCore.Pin.AddAsync(arg, new PinAddOptions { Recursive = recursive }, Cancel);
             return new PinsDto
             {
                 Pins = cids.Select(cid => cid.Encode())

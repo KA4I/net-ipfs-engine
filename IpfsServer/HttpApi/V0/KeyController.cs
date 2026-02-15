@@ -173,7 +173,53 @@ namespace Ipfs.Server.HttpApi.V0
             return dto;
         }
 
-        // TODO: import
-        // TODO: export
+        /// <summary>
+        ///   Export a key.
+        /// </summary>
+        /// <param name="arg">
+        ///   The key name.
+        /// </param>
+        /// <param name="password">
+        ///   The password to protect the exported key.
+        /// </param>
+        [HttpGet, HttpPost, Route("key/export")]
+        [Produces("text/plain")]
+        public async Task<string> Export(string arg, string password)
+        {
+            if (String.IsNullOrWhiteSpace(arg))
+                throw new ArgumentNullException(nameof(arg), "The key name is required.");
+            if (String.IsNullOrWhiteSpace(password))
+                throw new ArgumentNullException(nameof(password), "A password is required.");
+
+            return await IpfsCore.Key.ExportAsync(arg, password.ToCharArray(), Cancel);
+        }
+
+        /// <summary>
+        ///   Import a key.
+        /// </summary>
+        /// <param name="arg">
+        ///   The key name.
+        /// </param>
+        /// <param name="pem">
+        ///   The PEM encoded key.
+        /// </param>
+        /// <param name="password">
+        ///   The password protecting the key.
+        /// </param>
+        [HttpGet, HttpPost, Route("key/import")]
+        public async Task<CryptoKeyDto> Import(string arg, string pem, string? password = null)
+        {
+            if (String.IsNullOrWhiteSpace(arg))
+                throw new ArgumentNullException(nameof(arg), "The key name is required.");
+            if (String.IsNullOrWhiteSpace(pem))
+                throw new ArgumentNullException(nameof(pem), "The PEM data is required.");
+
+            var key = await IpfsCore.Key.ImportAsync(arg, pem, password?.ToCharArray(), Cancel);
+            return new CryptoKeyDto
+            {
+                Name = key.Name,
+                Id = key.Id.ToString()
+            };
+        }
     }
 }

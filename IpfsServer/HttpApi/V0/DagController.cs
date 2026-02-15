@@ -47,12 +47,12 @@ namespace Ipfs.Server.HttpApi.V0
         public DagController(ICoreApi ipfs) : base(ipfs) { }
 
         /// <summary>
-        ///  Resolve a reference (NYI).
+        ///  Resolve a reference.
         /// </summary>
-        [HttpGet, HttpPost, Route("dag/resolve")] // TODO
-        public Task Resolve(string arg)
+        [HttpGet, HttpPost, Route("dag/resolve")]
+        public async Task<DagResolveOutput> Resolve(string arg)
         {
-            throw new NotImplementedException("Resolving a dag reference is not implemented.");
+            return await IpfsCore.Dag.ResolveAsync(arg, Cancel);
         }
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace Ipfs.Server.HttpApi.V0
         [HttpGet, HttpPost, Route("dag/get")]
         public async Task<JToken> Get(string arg)
         {
-            return await IpfsCore.Dag.GetAsync(arg, Cancel);
+            return await IpfsCore.Dag.GetAsync(arg, cancel: Cancel);
         }
 
         /// <summary>
@@ -105,13 +105,44 @@ namespace Ipfs.Server.HttpApi.V0
                 
                 var cid = await IpfsCore.Dag.PutAsync(
                     json,
-                    contentType: format,
-                    multiHash: hash,
-                    encoding: cidBase,
+                    storeCodec: format,
                     pin: false,
                     cancel: Cancel);
                 return new LinkedDataCidDto { Cid = new LinkedDataDto { Link = cid } };
             }
+        }
+
+        /// <summary>
+        ///   Get DAG statistics.
+        /// </summary>
+        [HttpGet, HttpPost, Route("dag/stat")]
+        public async Task<DagStatSummary> Stat(string arg)
+        {
+            return await IpfsCore.Dag.StatAsync(arg, cancel: Cancel);
+        }
+
+        /// <summary>
+        ///   Export a DAG as a CAR archive.
+        /// </summary>
+        [HttpGet, HttpPost, Route("dag/export")]
+        [Produces("application/octet-stream")]
+        public async Task<IActionResult> Export(string arg)
+        {
+            var stream = await IpfsCore.Dag.ExportAsync(arg, Cancel);
+            return File(stream, "application/vnd.ipld.car");
+        }
+
+        /// <summary>
+        ///   Import a CAR archive.
+        /// </summary>
+        [HttpPost("dag/import")]
+        public async Task<CarImportOutput> Import(IFormFile file, [ModelBinder(Name = "pin-roots")] bool pinRoots = true)
+        {
+            if (file == null)
+                throw new ArgumentNullException(nameof(file));
+
+            using var stream = file.OpenReadStream();
+            return await IpfsCore.Dag.ImportAsync(stream, pinRoots, cancellationToken: Cancel);
         }
 
     }

@@ -42,9 +42,9 @@ namespace Ipfs.Server.HttpApi.V0
         [Produces("application/octet-stream")]
         public async Task<IActionResult> Get(string arg)
         {
-            var block = await IpfsCore.Block.GetAsync(arg, Cancel);
+            var data = await IpfsCore.Block.GetAsync(arg, Cancel);
             Immutable();
-            return File(block.DataStream, "application/octet-stream", arg, null, ETag(block.Id));
+            return File(data, "application/vnd.ipld.raw", arg, null, ETag((Cid)arg));
         }
 
         /// <summary>
@@ -93,14 +93,12 @@ namespace Ipfs.Server.HttpApi.V0
 
             using (var data = file.OpenReadStream())
             {
-                var cid = await IpfsCore.Block.PutAsync(
+                var blockStat = await IpfsCore.Block.PutAsync(
                     data,
-                    contentType: format,
-                    multiHash: mhtype,
-                    encoding: cidBase,
+                    cidCodec: format,
                     pin: false,
                     cancel: Cancel);
-                return new KeyDto { Key = cid };
+                return new KeyDto { Key = blockStat.Id };
             }
         }
 

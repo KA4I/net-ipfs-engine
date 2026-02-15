@@ -72,5 +72,35 @@ namespace Ipfs.Server.HttpApi.V0
             Program.Shutdown();
         }
 
+        /// <summary>
+        ///   Ping a peer.
+        /// </summary>
+        /// <param name="arg">
+        ///   The peer ID or multiaddress.
+        /// </param>
+        /// <param name="count">
+        ///   Number of pings.
+        /// </param>
+        [HttpGet, HttpPost, Route("ping")]
+        public async Task Ping(string arg, int count = 10)
+        {
+            IEnumerable<PingResult> results;
+            if (arg.StartsWith("/"))
+            {
+                MultiAddress address = arg;
+                results = await IpfsCore.Generic.PingAsync(address, count, Cancel);
+            }
+            else
+            {
+                MultiHash peer = arg;
+                results = await IpfsCore.Generic.PingAsync(peer, count, Cancel);
+            }
+
+            foreach (var result in results)
+            {
+                StreamJson(result);
+            }
+        }
+
     }
 }

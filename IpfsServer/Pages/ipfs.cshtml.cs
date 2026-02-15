@@ -90,7 +90,7 @@ namespace Ipfs.Server.Pages
 
             try
             {
-                node = await ipfs.FileSystem.ListFileAsync(Path, cancel);
+                node = await ipfs.FileSystem.ListAsync(Path, cancel);
             }
             catch (ArgumentException e)
             {

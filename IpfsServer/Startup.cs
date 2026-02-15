@@ -22,16 +22,14 @@ namespace Ipfs.Server
             services.AddMvc()
                 .AddJsonOptions(jo =>
                 {
-                    //jo.SerializerSettings.ContractResolver = new DefaultContractResolver()
-                    //{
-                    //    NamingStrategy = new DefaultNamingStrategy()
-                    //};
+                    jo.JsonSerializerOptions.IncludeFields = true;
                 });
+            services.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(o => o.EnableEndpointRouting = false);
 
             // Register the Swagger generator, defining 1 or more Swagger documents
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v0", new Microsoft.OpenApi.Models.OpenApiInfo {
+                c.SwaggerDoc("v0", new Microsoft.OpenApi.OpenApiInfo {
                     Title = "IPFS HTTP API",
                     Description = "The API for interacting with IPFS nodes.",
                     Version = "v0" });
@@ -43,7 +41,7 @@ namespace Ipfs.Server
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {

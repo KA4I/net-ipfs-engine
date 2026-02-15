@@ -109,10 +109,13 @@ namespace Ipfs.Server.HttpApi.V0
         /// <param name="arg">
         ///   The CID that is no longer needed.
         /// </param>
+        /// <remarks>
+        ///   This endpoint is no longer supported. The Bitswap UnwantAsync API has been removed.
+        /// </remarks>
         [HttpGet, HttpPost, Route("bitswap/unwant")]
-        public async Task Unwants(string arg)
+        public IActionResult Unwants(string arg)
         {
-            await IpfsCore.Bitswap.UnwantAsync(arg, Cancel);
+            return StatusCode(501, "Bitswap unwant is no longer supported.");
         }
 
         /// <summary>

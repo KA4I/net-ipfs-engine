@@ -102,6 +102,10 @@ namespace Ipfs.Server.HttpApi.V0
     ///   This is being obsoleted by <see cref="IDagApi"/>.
     ///   </note>
     /// </remarks>
+    /// <remarks>
+    ///   The Object API has been removed from the core API.
+    ///   All endpoints now return HTTP 501 Not Implemented.
+    /// </remarks>
     public class ObjectController : IpfsController
     {
         /// <summary>
@@ -109,193 +113,47 @@ namespace Ipfs.Server.HttpApi.V0
         /// </summary>
         public ObjectController(ICoreApi ipfs) : base(ipfs) { }
 
-
         /// <summary>
         ///   Create an object from a template.
         /// </summary>
-        /// <param name="arg">
-        ///   Template name. Must be "unixfs-dir".
-        /// </param>
         [HttpGet, HttpPost, Route("object/new")]
-        public async Task<ObjectLinkDetailDto> Create(
-            string arg)
-        {
-            var node = await IpfsCore.Object.NewAsync(arg, Cancel);
-            Immutable();
-            return new ObjectLinkDetailDto
-            {
-                Hash = node.Id,
-                Links = node.Links.Select(link => new ObjectLinkDto
-                {
-                    Hash = link.Id,
-                    Name = link.Name,
-                    Size = link.Size
-                })
-            };
-        }
+        public IActionResult Create(string arg)
+            => StatusCode(501, "Object API has been removed.");
 
         /// <summary>
         ///   Store a MerkleDAG node.
         /// </summary>
-        /// <param name="file">
-        ///   multipart/form-data.
-        /// </param>
-        /// <param name="inputenc">
-        ///   "protobuf" or "json"
-        /// </param>
-        /// <param name="datafieldenc">
-        ///   "text" or "base64"
-        /// </param>
-        /// <param name="pin">
-        ///   Pin the object.
-        /// </param>
-        /// <returns></returns>
         [HttpPost("object/put")]
-        public async Task<ObjectLinkDetailDto> Put(
-            IFormFile file,
-            string inputenc = "json",
-            string datafieldenc = "text",
-            bool pin = false
-        )
-        {
-            if (datafieldenc != "text")  // TODO
-                throw new NotImplementedException("Only datafieldenc = `text` is allowed.");
-
-            DagNode node = null;
-            switch (inputenc)
-            {
-                case "protobuf":
-                    using (var stream = file.OpenReadStream())
-                    {
-                        var dag = new DagNode(stream);
-                        node = await IpfsCore.Object.PutAsync(dag, Cancel);
-                    }
-                    break;
-
-                case "json": // TODO
-                default:
-                    throw new ArgumentException("inputenc", $"Input encoding '{inputenc}' is not supported.");
-            }
-
-            if (pin)
-            {
-                await IpfsCore.Pin.AddAsync(node.Id, false, Cancel);
-            }
-
-            return new ObjectLinkDetailDto
-            {
-                Hash = node.Id,
-                Links = node.Links.Select(link => new ObjectLinkDto
-                {
-                    Hash = link.Id,
-                    Name = link.Name,
-                    Size = link.Size
-                })
-            };
-        }
+        public IActionResult Put(IFormFile file, string inputenc = "json", string datafieldenc = "text", bool pin = false)
+            => StatusCode(501, "Object API has been removed.");
 
         /// <summary>
         ///   Get the data and links of an object.
         /// </summary>
-        /// <param name="arg">
-        ///   The object's CID.
-        /// </param>
-        /// <param name="dataEncoding">
-        ///   The encoding of the object's data; "text" (default) or "base64".
-        /// </param>
         [HttpGet, HttpPost, Route("object/get")]
-        public async Task<ObjectDataDetailDto> Get(
-            string arg,
-            [ModelBinder(Name = "data-encoding")] string dataEncoding)
-        {
-            var node = await IpfsCore.Object.GetAsync(arg, Cancel);
-            Immutable();
-            var dto = new ObjectDataDetailDto
-            {
-                Hash = arg,
-                Links = node.Links.Select(link => new ObjectLinkDto
-                {
-                    Hash = link.Id,
-                    Name = link.Name,
-                    Size = link.Size
-                })
-            };
-            switch (dataEncoding)
-            {
-                case "base64":
-                    dto.Data = Convert.ToBase64String(node.DataBytes);
-                    break;
-                case "text":
-                default:
-                    dto.Data = Encoding.UTF8.GetString(node.DataBytes);
-                    break;
-            }
-            return dto;
-        }
+        public IActionResult Get(string arg, [ModelBinder(Name = "data-encoding")] string dataEncoding)
+            => StatusCode(501, "Object API has been removed.");
 
         /// <summary>
         ///   Get the links of an object.
         /// </summary>
-        /// <param name="arg">
-        ///   The object's CID.
-        /// </param>
         [HttpGet, HttpPost, Route("object/links")]
-        public async Task<ObjectLinkDetailDto> Links(
-            string arg)
-        {
-            var links = await IpfsCore.Object.LinksAsync(arg, Cancel);
-            Immutable();
-            return new ObjectLinkDetailDto
-            {
-                Hash = arg,
-                Links = links.Select(link => new ObjectLinkDto
-                {
-                    Hash = link.Id,
-                    Name = link.Name,
-                    Size = link.Size
-                })
-            };
-        }
+        public IActionResult Links(string arg)
+            => StatusCode(501, "Object API has been removed.");
 
         /// <summary>
         ///   Get the object's data.
         /// </summary>
-        /// <param name="arg">
-        ///   The object's CID or a path.
-        /// </param>
         [HttpGet, HttpPost, Route("object/data")]
         [Produces("text/plain")]
-        public async Task<IActionResult> Data(string arg)
-        {
-            var r = await IpfsCore.Generic.ResolveAsync(arg, true, Cancel);
-            var cid = Cid.Decode(r.Remove(0, 6));  // strip '/ipfs/'.
-            var stream = await IpfsCore.Object.DataAsync(cid, Cancel);
-
-            return File(stream, "text/plain");
-        }
+        public IActionResult Data(string arg)
+            => StatusCode(501, "Object API has been removed.");
 
         /// <summary>
         ///   Get the stats of an object.
         /// </summary>
-        /// <param name="arg">
-        ///   The object's CID.
-        /// </param>
         [HttpGet, HttpPost, Route("object/stat")]
-        public async Task<ObjectStatDto> Stat(
-            string arg)
-        {
-            var info = await IpfsCore.Object.StatAsync(arg, Cancel);
-            Immutable();
-            return new ObjectStatDto
-            {
-                Hash = arg,
-                BlockSize = info.BlockSize,
-                CumulativeSize = info.CumulativeSize,
-                DataSize = info.DataSize,
-                LinksSize = info.LinkSize,
-                NumLinks = info.LinkCount
-            };
-        }
-
+        public IActionResult Stat(string arg)
+            => StatusCode(501, "Object API has been removed.");
     }
 }

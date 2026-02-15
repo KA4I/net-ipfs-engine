@@ -181,7 +181,7 @@ namespace Ipfs.Server.HttpApi.V0
         public async Task<FileSystemDetailsDto> Stat(
             string arg)
         {
-            var node = await IpfsCore.FileSystem.ListFileAsync(arg, Cancel);
+            var node = await IpfsCore.FileSystem.ListAsync(arg, Cancel);
             var dto = new FileSystemDetailsDto
             {
                 Arguments = new Dictionary<string, string>(),
@@ -191,14 +191,14 @@ namespace Ipfs.Server.HttpApi.V0
             dto.Objects[node.Id] = new FileSystemDetailDto
             {
                 Hash = node.Id,
-                Size = node.Size,
+                Size = (long)node.Size,
                 Type = node.IsDirectory ? "Directory" : "File",
                 Links = node.Links
                     .Select(link => new FileSystemLinkDto
                     {
                         Hash = link.Id,
                         Name = link.Name,
-                        Size = link.Size
+                        Size = (long)link.Size
                     })
                     .ToArray()
             };
@@ -214,12 +214,12 @@ namespace Ipfs.Server.HttpApi.V0
             string hash = MultiHash.DefaultAlgorithmName,
             [ModelBinder(Name = "cid-base")] string cidBase = MultiBase.DefaultAlgorithmName,
             [ModelBinder(Name = "only-hash")] bool onlyHash = false,
-            string chunker = null,
+            string chunker = null!,
             bool pin = false,
             [ModelBinder(Name = "raw-leaves")] bool rawLeaves = false,
             bool trickle = false,
             [ModelBinder(Name = "wrap-with-directory")] bool wrap = false,
-            string protect = null,
+            string protect = null!,
             bool progress = true
             )
         {
@@ -228,26 +228,14 @@ namespace Ipfs.Server.HttpApi.V0
 
             var options = new AddFileOptions
             {
-                Encoding = cidBase,
                 Hash = hash,
                 OnlyHash = onlyHash,
                 Pin = pin,
                 RawLeaves = rawLeaves,
                 Trickle = trickle,
                 Wrap = wrap,
-                ProtectionKey = protect,
+                Chunker = chunker,
             };
-            if (chunker != null)
-            {
-                if (chunker.StartsWith("size-"))
-                {
-                    options.ChunkSize = int.Parse(chunker.Substring(5), CultureInfo.InvariantCulture);
-                }
-                else
-                {
-                    throw new ArgumentOutOfRangeException("chunker");
-                }
-            }
 
             if (progress)
             {

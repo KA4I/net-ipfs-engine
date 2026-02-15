@@ -73,6 +73,10 @@ namespace Ipfs.Server
                 {
                     logging.ClearProviders();
                 })
+                .ConfigureKestrel(options =>
+                {
+                    options.AllowSynchronousIO = true;
+                })
                 .UseUrls(urls)
                 .Build();
         }
